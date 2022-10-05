@@ -8,7 +8,7 @@ warning('off');
 addpath(genpath('/Users/battal/Documents/MATLAB/spm12'));
 
 % then add cpp repo to prevent repo version compatibility issue
-run ../lib/CPP_BIDS_SPM_pipeline/initCppSpm.m;
+run ../lib/bidspm/initCppSpm.m;
 
 % lastly, we add all the subfunctions that are in the sub directories
 opt = getOptionMoebiusMvpa();
