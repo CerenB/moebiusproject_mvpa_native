@@ -1,0 +1,37 @@
+{
+  "Name": "mvpa_AuditoryCueParts1ForeheadReg",
+  "Description": "betas for the somatotopy dataset mvpa",
+  "Input": {
+    "task": "somatotopy"
+  },
+  "Steps": [
+    {
+      "Level": "run",
+      "Model": {
+        "X": [
+          "trial_type.block_hand",
+          "trial_type.block_feet",
+          "trial_type.block_tongue",
+          "trial_type.block_lips",
+          "trial_type.block_forehead",
+          "trial_type.block_forehead2",
+          "trial_type.hand_subjectCue",
+          "trial_type.feet_subjectCue",
+          "trial_type.tongue_subjectCue",
+          "trial_type.lips_subjectCue",
+          "trial_type.forehead_subjectCue",
+          "trial_type.response",
+          "trans_x", "trans_y", "trans_z", "rot_x", "rot_y", "rot_z"
+        ]
+      },
+      "AutoContrasts": [
+          "trial_type.block_hand",
+          "trial_type.block_feet",
+          "trial_type.block_tongue",
+          "trial_type.block_lips",
+          "trial_type.block_forehead",
+          "trial_type.block_forehead2",
+        ]
+    }
+  ]
+}
