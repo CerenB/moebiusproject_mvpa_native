@@ -17,16 +17,16 @@ clc;
   cosmo_check_external('libsvm'); % should not give an error
   
   % add cpp repo
-  run ../../rhythmBlock_fMRI_analysis/lib/CPP_BIDS_SPM_pipeline/initCppSpm.m;
+  run ../lib/bidspm/initCppSpm.m;
   
-     
+  % add mini-helper functions
+  addpath(genpath(fullfile(pwd, 'subfun')));
+  
   % load your options
-  opt = getOptionBlockMvpa();
+  opt = getOptionMoebiusMvpa();
 
   %% run mvpa 
-  
-  % use parcels or NS masks?
-  roiSource = 'hmat'; % 'freesurfer', 'neurosynth', ...
+  roiSource = 'spmAnat'; 
   accuracy = calculateMvpa(opt, roiSource);
   
   

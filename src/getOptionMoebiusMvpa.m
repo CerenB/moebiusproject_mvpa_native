@@ -40,42 +40,36 @@ function opt = getOptionMoebiusMvpa()
                        
     opt.model.file = fullfile(fileparts(mfilename('fullpath')), '..', ...
                               'model', 'model-somatotopy_audCueParts_smdl.json'); 
-%     opt.model.file = fullfile(fileparts(mfilename('fullpath')), '..', ...
-%                               'model', 'model-somatotopy_noCue_smdl.json');
-%     opt.model.file = fullfile(fileparts(mfilename('fullpath')), '..', ...
-%                               'model', 'model-mototopy_audCueParts_smdl.json');
-                          
+
+
+    opt.pathOutput = fullfile(opt.dataDir, '..', 'derivatives', 'cosmoMvpa');                 
   %% DO NOT TOUCH
   opt = checkOptions(opt);
   saveOptions(opt);
+  
   % we cannot save opt with opt.mvpa, it crashes
 
   %% mvpa options
-
   % define the 4D maps to be used
   opt.funcFWHM = 2;
 
   % take the most responsive xx nb of voxels
-  opt.mvpa.ratioToKeep = 300; % 100 150 250 350 420
+  opt.mvpa.ratioToKeep = 300; % 100 150 250 (364 min for combo)
 
   % set which type of ffx results you want to use
   opt.mvpa.map4D = {'beta', 't_maps'};
 
   % design info
-  opt.mvpa.nbRun = 9;
+  opt.mvpa.nbRun = 6;
   opt.mvpa.nbTrialRepetition = 1;
 
   % cosmo options
   opt.mvpa.tool = 'cosmo';
-  % opt.mvpa.normalization = 'zscore';
+  opt.mvpa.normalization = 'zscore';
   opt.mvpa.child_classifier = @cosmo_classify_libsvm;
   opt.mvpa.feature_selector = @cosmo_anova_feature_selector;
 
   % permute the accuracies ?
   opt.mvpa.permutate = 1;
-
-%     %% DO NOT TOUCH
-%     opt = checkOptions(opt);
-%     saveOptions(opt);
 
 end
