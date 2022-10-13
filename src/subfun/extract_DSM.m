@@ -6,50 +6,35 @@ function extract_DSM(slicing,action)
 % action 2 plots the DSM figures and runs a correlation between the group
 % rois
 
-% 15.12.2021 CB refactoring on for action == 1
-%% provide some parameters to run
-
-% which device are you on?
-pc = 3;
-
-% which roi you want?
-roi = 'V5'; % or PT
+% 12.10.2022 CB refactoring on for moebius project 
 
 %% set Path
 % add cosmo path only in pc 3 option
-if pc == 1 % office PC
-    mainPath='/Cerens_files/fMRI/Processed/Spatiotopy/';
-elseif pc == 2 %your laptop
-    mainPath='/Users/cerenbattal/Cerens_files/fMRI/Processed/Spatiotopy';
-elseif pc == 3 %your SSD
-    mainPath='/Volumes/extreme/Cerens_files/fMRI/Processed/Spatiotopy/';
-    % cosmo
-    cosmo = '~/Documents/MATLAB/CoSMoMVPA';
-    addpath(genpath(cosmo));
-    cosmo_warning('once');
-    % libsvm
-    libsvm = '~/Documents/MATLAB/libsvm';
-    addpath(genpath(libsvm));
-    % verify it worked:
-    cosmo_check_external('libsvm'); % should not give an error
-end
+
+mainPath = fullfile(fileparts(mfilename('fullpath')), '..', ...
+                                '..', '..', '..', 'derivatives');
+roiPath = fullfile(fileparts(mfilename('fullpath')), '..', ...
+                                '..', '..', '..', 'derivatives', 'roi', ...
+                                'atlases', 'spmAnatomy');
 
 % define output path
-outputPath = fullfile(mainPath,'RSA', ...
-    'DSM_results_group_reliability', ...
-    'DSM_results_group_reliability_MotionStatic', '6mm');
+outputPath = fullfile(mainPath,'RSA');
 
-% chooses which Roi name
-if strcmp(roi, 'V5')
-    roiPath=fullfile(mainPath,'MVPA/ROIs_VMotion/');
-    roiName = '*V5_6mm_2.nii';
-elseif strcmp(roi, 'PT')
-    roiPath=fullfile(mainPath,'MVPA/ROIs_AMotion/');
-    roiName = '*PT_6mm_mo.nii';
-elseif strcmp(roi, 'PTNS') % neurosynth PT
-    roiPath=fullfile(mainPath,'MVPA/ROIs_AMotion/');
-    roiName = '*PT_6mm_NS.nii';
-end
+
+% cosmo
+cosmo = '~/Documents/MATLAB/CoSMoMVPA';
+addpath(genpath(cosmo));
+cosmo_warning('once');
+% libsvm
+libsvm = '~/Documents/MATLAB/libsvm';
+addpath(genpath(libsvm));
+% verify it worked:
+cosmo_check_external('libsvm'); % should not give an error
+
+
+
+
+
 
 % set subjects
 subAll = {'NiFe','PiFo','AnDe','AnPa','ArRa','JePa','LuAn','MaPe',...
