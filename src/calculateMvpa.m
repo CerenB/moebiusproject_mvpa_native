@@ -29,13 +29,6 @@ savefileCsv = fullfile(opt.pathOutput, ...
     '_ratio', num2str(opt.mvpa.ratioToKeep ), ...
     '_', datestr(now, 'yyyymmddHHMM'), '.csv']);
 
-%% MVPA options
-
-% % set cosmo mvpa structure
-% condLabelNb = [1 2];
-% condLabelName = {'simple', 'complex'};
-% decodingCondition = 'simpleVscomplex';
-
 %% let's get going!
 
 % set structure array for keeping the results

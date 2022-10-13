@@ -11,7 +11,7 @@ function opt = getOptionSearchlight()
   % group of subjects to analyze
   opt.groups = {''};
   % suject to run in each group
-  opt.subjects = {'pil010', 'pil011'};
+  opt.subjects = {'pil008', 'pil009'};
 
   % Uncomment the lines below to run preprocessing
   % - don't use realign and unwarp
@@ -23,7 +23,7 @@ function opt = getOptionSearchlight()
   % The directory where the data are located
   opt.dataDir = fullfile(fileparts(mfilename('fullpath')), ...
                            '..', '..', '..',  'raw');
-  opt.derivativesDir = fullfile(opt.dataDir, '..');
+  opt.derivativesDir = fullfile(opt.dataDir, '..', 'derivatives', 'cpp-spm');
 
   % task to analyze
   % opt.taskName = 'mototopy';

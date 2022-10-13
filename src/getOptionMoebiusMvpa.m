@@ -12,7 +12,7 @@ function opt = getOptionMoebiusMvpa()
     % group of subjects to analyze
     opt.groups = {''};
     % suject to run in each group
-    opt.subjects = {'pil010', 'pil011'}; 
+    opt.subjects = {'pil008', 'pil009'}; 
     
     
     % Uncomment the lines below to run preprocessing
@@ -26,11 +26,12 @@ function opt = getOptionMoebiusMvpa()
     % The directory where the data are located
     opt.dataDir = fullfile(fileparts(mfilename('fullpath')), ...
                            '..', '..', '..',  'raw');
-    opt.derivativesDir = fullfile(opt.dataDir, '..');
+    opt.derivativesDir = fullfile(opt.dataDir, '..', 'derivatives', ...
+                                  'cpp_spm');
 
     % task to analyze
-%     opt.taskName = 'mototopy';
-    opt.taskName = 'somatotopy';
+    opt.taskName = 'mototopy';
+%     opt.taskName = 'somatotopy';
 
  
     % Suffix output directory for the saved jobs
@@ -39,10 +40,15 @@ function opt = getOptionMoebiusMvpa()
                            'cpp_spm', 'JOBS', opt.taskName);
                        
     opt.model.file = fullfile(fileparts(mfilename('fullpath')), '..', ...
-                              'model', 'model-somatotopy_audCueParts_smdl.json'); 
+                              'model', 'model-mototopy_audCueParts_smdl.json'); 
 
 
-    opt.pathOutput = fullfile(opt.dataDir, '..', 'derivatives', 'cosmoMvpa');                 
+    opt.pathOutput = fullfile(opt.dataDir, '..', 'derivatives', 'cosmoMvpa');    
+    
+
+    opt.roiPath = fullfile(fileparts(mfilename('fullpath')), '..', ...
+                                '..', '..', '..', 'derivatives', 'roi', ...
+                                'atlases', 'spmAnatomy');
   %% DO NOT TOUCH
   opt = checkOptions(opt);
   saveOptions(opt);
@@ -60,7 +66,7 @@ function opt = getOptionMoebiusMvpa()
   opt.mvpa.map4D = {'beta', 't_maps'};
 
   % design info
-  opt.mvpa.nbRun = 6;
+  opt.mvpa.nbRun = 3; %6 for somato, 3 for mototopy
   opt.mvpa.nbTrialRepetition = 1;
 
   % cosmo options
