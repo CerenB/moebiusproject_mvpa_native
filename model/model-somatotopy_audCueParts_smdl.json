@@ -19,7 +19,6 @@
           "trial_type.tongue_subjectCue",
           "trial_type.lips_subjectCue",
           "trial_type.forehead_subjectCue",
-          "trial_type.response",
           "trans_x", "trans_y", "trans_z", "rot_x", "rot_y", "rot_z"
         ]
       },
