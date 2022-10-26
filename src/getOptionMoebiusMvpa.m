@@ -12,7 +12,7 @@ function opt = getOptionMoebiusMvpa()
     % group of subjects to analyze
     opt.groups = {''};
     % suject to run in each group
-    opt.subjects = {'pil008', 'pil009'}; 
+    opt.subjects = {'pil009','pil010', 'pil011'}; %  'pil008', 
     
     
     % Uncomment the lines below to run preprocessing
@@ -40,7 +40,8 @@ function opt = getOptionMoebiusMvpa()
                            'cpp_spm', 'JOBS', opt.taskName);
                        
     opt.model.file = fullfile(fileparts(mfilename('fullpath')), '..', ...
-                              'model', 'model-mototopy_audCueParts_smdl.json'); 
+                              'model', ...
+                              ['model-', opt.taskName, '_audCueParts_smdl.json']); 
 
 
     opt.pathOutput = fullfile(opt.dataDir, '..', 'derivatives', 'cosmoMvpa');    
@@ -60,13 +61,17 @@ function opt = getOptionMoebiusMvpa()
   opt.funcFWHM = 2;
 
   % take the most responsive xx nb of voxels
-  opt.mvpa.ratioToKeep = 300; % 100 150 250 (364 min for combo)
+  opt.mvpa.ratioToKeep = 150; % 100 150 250 300(364 min for combo)
 
   % set which type of ffx results you want to use
   opt.mvpa.map4D = {'beta', 't_maps'};
 
   % design info
   opt.mvpa.nbRun = 3; %6 for somato, 3 for mototopy
+  if strcmp(opt.taskName, 'somatotopy')
+     opt.mvpa.nbRun = 6; 
+  end
+
   opt.mvpa.nbTrialRepetition = 1;
 
   % cosmo options

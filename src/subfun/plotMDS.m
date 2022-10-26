@@ -1,51 +1,59 @@
-function plot_DirectionLocation_MDS
+function plotMDS(opt, roi, image)
 
 % copyright Stefania Mattioni 2018
 
-% the visualization of left,right,up nd down motion and static
+% the visualization of 5 body parts
 % input: DSMs for left and right ROIs,
 %        other plots are commented
 
 % output: MDS (multi-dimensional scaling) plots in given ROI
 
-% last edit cb 14.07.2021 to plot MDS in loc V5 and loc PT in EB/SC
-
 %% load input
-pc = 2;
+% get the smoothing parameter for 4D map
+funcFWHM = opt.funcFWHM;
 
-if pc == 1
-    pcPath = '/Users/cerenbattal/';
-else 
-    pcPath = '/Volumes/extreme/';
-end
+% choose masks to be used
+opt = chooseMask(opt, roiSource);
 
-inputPathName = 'Cerens_files/fMRI/Processed/Spatiotopy/RSA/DSM_results_group_reliability/DSM_results_group_reliability_MotionStatic/6mm';
-inputPath = fullfile(pcPath, inputPathName);
+                            
+% define output path
+inputPath = fullfile(opt.pathOutput,'RSA');
 cd(inputPath)
 
-outputPath = fullfile(inputPath,'MDS_figures');
-group = 'EB';
-roiName1 = 'lPT_6mm_dsm';
-roiName2 = 'rPT_6mm_dsm';
+outputPath = fullfile(inputPath,'MDSFigures');
+if ~exist(outputPath, 'dir')
+        mkdir(outputPath);
+end
 
-% set the output file names
-figure1SaveName = fullfile(outputPath,[group, roiName1,'_', date,'.pdf']);
-figure2SaveName = fullfile(outputPath,[group, roiName2,'_', date,'.pdf']);
+% find which .mat files to load for plotting
+patternToSearch = [opt.taskName, ...
+                   '_DSM_*', roi, ...
+                   '_image-',image, ...
+                   '_Slicing-',condition,...
+                   '_s-', num2str(funcFWHM), ...
+                   '.mat'];
+ roiFile = dir(fullfile(inputPath, patternToSearch));
+ roiFile([roiFile.isdir]) = [];
+  
+
+% make output file names here
+figureSaveFileName{1} = fullfile(outputPath,[roiFile(1).name(1:end-4), '.pdf']);
+figureSaveFileName{2} = fullfile(outputPath,[roiFile(2).name(1:end-4), '.pdf']);
+
 
 % load dissimilarity matrix
-load([group,'_',roiName1]); 
-left_dsm = meanEB_dsm;
-
-load([group,'_',roiName2]);
-right_dsm = meanEB_dsm;
+load(roiFile(1).name);
+left_dsm = contMeanDsm;
+load(roiFile(2).name);
+right_dsm = contMeanDsm;
 
 %label the dots shorter to avoid overlap
-labels_dsm= {'LD', 'RD', 'DD', 'UD','L','R','D','U'};
-
+labels_dsm= {'Hand', 'Feet', 'Tongue', 'Lips','Forehead'};
+%hand = 1, feet = 2, tongue = 3, lips = 4, forehead = 5
 %% let's get going...
 % get two-dimensional projection of ROIs dissimilarity matrices using cmdscale
 figure;
-right_mds = cmdscale(right_dsm);
+right_mds = cmdscale(squareform(right_dsm));
 left_mds = cmdscale(squareform(left_dsm));
 
 % adjust range of x and y axes
@@ -57,33 +65,21 @@ ylim([-mx mx]);
 % adjust the font size
 fnsize= 12;
 
-% Left ROI
-%Motion direction in left ROI
-
+% 5 body parts in left ROI
 text(left_mds(1,1), left_mds(1,2), labels_dsm(1),'Color',[1,0.5,0],'FontName','Helvetica','FontSize',fnsize);
 text(left_mds(2,1), left_mds(2,2), labels_dsm(2),'Color',[1,0,0],'FontName','Helvetica','FontSize',fnsize);
 text(left_mds(3,1), left_mds(3,2), labels_dsm(3),'Color',[0,0,1],'FontName','Helvetica','FontSize',fnsize);
 text(left_mds(4,1), left_mds(4,2), labels_dsm(4),'Color',[0,0.5,1],'FontName','Helvetica','FontSize',fnsize);
-%static location in left ROI
-text(left_mds(5,1), left_mds(5,2), labels_dsm(5),'Color',[0.8,0.5,0.3],'FontName','Helvetica','FontSize',fnsize); %[1,0,1]
-text(left_mds(6,1), left_mds(6,2), labels_dsm(6),'Color',[0.75,0.2,0.2],'FontName','Helvetica','FontSize',fnsize); 
-text(left_mds(7,1), left_mds(7,2), labels_dsm(7),'Color',[0.5,0.5,1],'FontName','Helvetica','FontSize',fnsize); 
-text(left_mds(8,1), left_mds(8,2), labels_dsm(8),'Color',[0.5,0.75,1],'FontName','Helvetica','FontSize',fnsize); 
+text(left_mds(5,1), left_mds(5,2), labels_dsm(5),'Color',[0.2,0.75,0.8],'FontName','Helvetica','FontSize',fnsize); %forehead
 
 
-
-% Right ROI similarity
-% Motion direction in left ROI
+% 5 body parts in the right ROI
 figure;
 text(right_mds(1,1), right_mds(1,2), labels_dsm(1),'Color',[1,0.5,0],'FontName','Helvetica','FontSize',fnsize);
 text(right_mds(2,1), right_mds(2,2), labels_dsm(2),'Color',[1,0,0],'FontName','Helvetica','FontSize',fnsize);
 text(right_mds(3,1), right_mds(3,2), labels_dsm(3),'Color',[0,0,1],'FontName','Helvetica','FontSize',fnsize);
 text(right_mds(4,1), right_mds(4,2), labels_dsm(4),'Color',[0,0.5,1],'FontName','Helvetica','FontSize',fnsize);
-%static location in left ROI
-text(right_mds(5,1), right_mds(5,2), labels_dsm(5),'Color',[0.8,0.5,0.3],'FontName','Helvetica','FontSize',fnsize); %[1,0,1]
-text(right_mds(6,1), right_mds(6,2), labels_dsm(6),'Color',[0.75,0.2,0.2],'FontName','Helvetica','FontSize',fnsize); 
-text(right_mds(7,1), right_mds(7,2), labels_dsm(7),'Color',[0.5,0.5,1],'FontName','Helvetica','FontSize',fnsize); 
-text(right_mds(8,1), right_mds(8,2), labels_dsm(8),'Color',[0.5,0.75,1],'FontName','Helvetica','FontSize',fnsize); 
+text(right_mds(5,1), right_mds(5,2), labels_dsm(5),'Color',[0.2,0.75,0.8],'FontName','Helvetica','FontSize',fnsize); 
 
 %text(right_mds(:,1), right_mds(:,2), labels_dsm);
 % adjust range of x and y axes
@@ -105,7 +101,7 @@ set(gca,'XTick',1:length(left_dsm),'XAxisLocation', 'top','XTickLabel',...
 c= colorbar();
 set(c, 'YTick', [0 1]); 
 caxis([0 1])
-saveas(LH,figure1SaveName); 
+saveas(LH,figureSaveFileName{1}); 
 
 figure;
 RH = imagesc(right_dsm);
@@ -116,7 +112,7 @@ set(gca,'XTick',1:length(right_dsm),'XAxisLocation', 'top','XTickLabel',...
 c = colorbar();
 set(c, 'YTick', [0 1]); 
 caxis([0 1])
-saveas(RH,figure2SaveName)
+saveas(RH,figureSaveFileName{2})
    
 % another idea would be...
 %figure;

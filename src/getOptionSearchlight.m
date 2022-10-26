@@ -11,7 +11,7 @@ function opt = getOptionSearchlight()
   % group of subjects to analyze
   opt.groups = {''};
   % suject to run in each group
-  opt.subjects = {'pil008', 'pil009'};
+  opt.subjects = {'pil010', 'pil011'}; 
 
   % Uncomment the lines below to run preprocessing
   % - don't use realign and unwarp
@@ -26,8 +26,8 @@ function opt = getOptionSearchlight()
   opt.derivativesDir = fullfile(opt.dataDir, '..', 'derivatives', 'cpp-spm');
 
   % task to analyze
-  % opt.taskName = 'mototopy';
-  opt.taskName = 'somatotopy';
+  opt.taskName = 'mototopy';
+%   opt.taskName = 'somatotopy';
 
  
   % Suffix output directory for the saved jobs
@@ -35,9 +35,6 @@ function opt = getOptionSearchlight()
                            opt.dataDir, '..', 'derivatives', ...
                            'cpp_spm', 'JOBS', opt.taskName);
                        
-  opt.model.file = fullfile(fileparts(mfilename('fullpath')), '..', ...
-                              'model', 'model-somatotopy_audCueParts_smdl.json'); 
-
   opt.pathOutput = fullfile(opt.dataDir, '..', 'derivatives', 'cosmoMvpa', ...
                             'Searchlight', 'raw');
 
@@ -45,7 +42,8 @@ function opt = getOptionSearchlight()
                             'Searchlight', 'derivatives');                     
     % multivariate
   opt.model.file = fullfile(fileparts(mfilename('fullpath')), '..', ...
-                            'model', 'model-somatotopy_audCueParts_smdl.json');
+                            'model', ...
+                            ['model-', opt.taskName,'_audCueParts_smdl.json']);
 
 
   opt.parallelize.do = true;
@@ -73,7 +71,7 @@ function opt = getOptionSearchlight()
   opt.mvpa.roiSource = 'wholeBrain';
 
   % design info
-  opt.mvpa.nbRun = 6;
+  opt.mvpa.nbRun = 3; % 3 for sub009/sub010/sub011 for moto (sub008 cannot due to 1run)
   opt.mvpa.nbTrialRepetition = 1;
 
   % cosmo options

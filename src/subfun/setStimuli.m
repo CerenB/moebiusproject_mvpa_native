@@ -31,5 +31,14 @@ switch decodingType
                 labels= {'Hand', 'Feet', 'Tongue', 'Lips',...
                         'Forehead', 'Forehead2'};
                 conditionNb = 2;
-
+                
+    %multiclass decoding FOR 5 body parts
+    case 4 
+                stim = 1:5;
+                labels= {'Hand', 'Feet', 'Tongue', 'Lips',...
+                        'Forehead'};
+                    
+                % make pairs for pairwise decoding
+                pairs = sort(nchoosek(stim,2), 2, 'ascend');                
+                conditionNb = length(pairs);
 end

@@ -29,7 +29,23 @@ clc;
   roiSource = 'spmAnat'; 
   accuracy = calculateMvpa(opt, roiSource);
   
+  %% run pairwise MVPA
+  roiSource = 'spmAnat'; 
+  opt.mvpa.pairs = 1;
+  accuracy = calculatePairwiseMvpa(opt, roiSource);
+
+  %% extract DSMs
+  % example call: extract_DSM(opt,roiSource, action)
+  extract_DSM(opt,roiSource)
   
+  %% plot DSMs
+  roi = 'somato3';
+  image = 'beta';
+  condition = 'BodyParts5';
+  plotMDS(opt, roi, image)
   
-  
+  %% extract and plot pairwise DSMs
+  image = 'beta'; %'t_maps'
+  roiSource = 'spmAnat';
+  extractAndPlotPairwiseDA(opt,roiSource, image);
   
