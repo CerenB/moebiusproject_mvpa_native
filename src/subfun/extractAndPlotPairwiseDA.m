@@ -19,10 +19,10 @@ end
 
 % load the .mat file 
 inputFilePattern =[opt.taskName, ...
-    'Decoding_', ...
+    'PairwiseDecoding_', ...
     roiSource, ...
     '_s', num2str(opt.funcFWHM), ...
-    '_ratio', num2str(opt.mvpa.ratioToKeep), ...
+    '_voxNb', num2str(opt.mvpa.ratioToKeep), ...
     '_*', '.mat'];
 
  inputFile = dir(fullfile(opt.pathOutput, inputFilePattern));
@@ -105,7 +105,7 @@ for iSub = 1:numel(opt.subjects)
 end
 
 % save
-outputName = ['DSM-pairwise-', inputFilePattern(1:end-6)];
+outputName = ['DSM-', inputFilePattern(1:end-6)];
 save(fullfile(outputPath,outputName),'leftDsm', 'rightDsm',...
                               'AllLeftAccu', 'AllRightAccu');
 
@@ -117,8 +117,8 @@ save(fullfile(outputPath,outputName),'leftDsm', 'rightDsm',...
 DSM = rightDsm;
 roiName = 'rightSomatoCx3ab';
 
-% DSM = dsmLeft(:,:,4);
-% roiName = 'leftSomatoCx3ab-pil011';
+% DSM = dsmRight(:,:,3);
+% roiName = 'rightSomatoCx3ab-pil011';
 
 % make the figure
 figure;
