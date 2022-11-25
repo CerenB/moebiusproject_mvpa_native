@@ -26,3 +26,9 @@ clc;
 
   % perform the searchlight
   info = step1Searchlight(opt);
+  
+  % smoothing
+  funcFWHM2Level = 8;
+  maps = 't_maps';
+  condition = 'BodyParts5';
+  step2SmoothSLMaps(condition, maps, funcFWHM2Level);
