@@ -1,4 +1,4 @@
-function step3CreateSLResultsMaps(maps, funcFWHM2Level)
+function step3CreateSLResultsMaps(condition,maps, funcFWHM2Level)
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % Step 2 was smoothing the SL result maps
   % Here Step 3 is producing mean classification accuracy
@@ -8,7 +8,7 @@ function step3CreateSLResultsMaps(maps, funcFWHM2Level)
   % funcFWHM = 0 %  2;
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  opt = getOptionBlockSearchlight();
+  opt = getOptionSearchlight();
 
   if nargin == 0
 
@@ -36,8 +36,10 @@ function step3CreateSLResultsMaps(maps, funcFWHM2Level)
                            '_classifier-', opt.mvpa.className]);
                        
                        
-  midFilePattern = ['4D-', maps, '_', opt.mvpa.sphereType, ...
-                    '-', num2str(opt.mvpa.searchlightVoxelNb), '*.nii'];
+  midFilePattern = ['4D-', maps, ...
+                    '_', condition, '_', ...
+                    opt.mvpa.sphereType, '-', num2str(opt.mvpa.searchlightVoxelNb),...
+                    '*.nii'];
   
   
   % read smoothed files only

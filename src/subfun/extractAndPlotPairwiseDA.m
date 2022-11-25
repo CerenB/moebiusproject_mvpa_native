@@ -114,11 +114,11 @@ save(fullfile(outputPath,outputName),'leftDsm', 'rightDsm',...
 % change this part accordingly
 % DSM = leftDsm;
 % roiName = rightRoi;
-DSM = rightDsm;
-roiName = 'rightSomatoCx3ab';
+% DSM = leftDsm;
+% roiName = 'leftSomatoCx3ab';
 
-% DSM = dsmRight(:,:,3);
-% roiName = 'rightSomatoCx3ab-pil011';
+DSM = dsmLeft(:,:,1);
+roiName = 'leftSomatoCx3ab-pil008';
 
 % make the figure
 figure;

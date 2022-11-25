@@ -1,4 +1,4 @@
-function step2SmoothSLMaps(maps, funcFWHM2Level)
+function step2SmoothSLMaps(condition, maps, funcFWHM2Level)
 
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   % Step 1 was running searchlight analysis
@@ -9,12 +9,11 @@ function step2SmoothSLMaps(maps, funcFWHM2Level)
   % funcFWHM = 0 %  2;
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  opt = getOptionBlockSearchlight();
+  opt = getOptionSearchlight();
 
-  if nargin == 0
+  if nargin < 2 
 
     maps = opt.mvpa.map4D{2};
-
     funcFWHM2Level = 8;
 
   end
@@ -37,9 +36,10 @@ function step2SmoothSLMaps(maps, funcFWHM2Level)
                            '-', num2str(opt.mvpa.searchlightVoxelNb), ...
                            '_classifier-', opt.mvpa.className]);
                        
-                       
-  midFilePattern = ['4D-', maps, '_', opt.mvpa.sphereType, ...
-                    '-', num2str(opt.mvpa.searchlightVoxelNb), '*.nii'];
+  midFilePattern = ['4D-', maps, ...
+                    '_', condition, '_', ...
+                    opt.mvpa.sphereType, '-', num2str(opt.mvpa.searchlightVoxelNb),...
+                    '*.nii'];
   
   % define where the sl files are
   slNiiFile = dir(fullfile(resultFolder,['*_', midFilePattern]));

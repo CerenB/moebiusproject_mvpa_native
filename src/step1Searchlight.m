@@ -93,8 +93,10 @@ for iSub = 1:numel(opt.subjects)
             
             % slice the ds according to your targers (choose your
             % train-test conditions
-            [ds, textCondition] = sliceDataPerCondition(ds,iDecodingType,iDecodCondition);
-
+            opt.iDecodCondition = iDecodCondition;
+            opt.decodingType = iDecodingType;
+            [ds, textCondition] = sliceDataPerCondition(opt, ds);
+            
             % remove constant features
             ds = cosmo_remove_useless_data(ds);
             

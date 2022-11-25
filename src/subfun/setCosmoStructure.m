@@ -14,6 +14,6 @@ function ds = setCosmoStructure(opt, ds)
   ds.sa.chunks = chunks;
   ds.sa.labels = labels;
 
-  % figure; imagesc(ds.sa.chunks);
+  %figure; imagesc(ds.sa.chunks);
 
 end
