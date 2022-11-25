@@ -1,5 +1,5 @@
 {
-  "Name": "mvpa_AuditoryCueParts6runs",
+  "Name": "mvpa_AuditoryCueParts",
   "Description": "betas for the mototopy mvpa",
   "Input": {
     "task": "mototopy"

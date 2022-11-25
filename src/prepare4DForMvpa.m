@@ -16,14 +16,14 @@ opt = getOptionMoebiusMvpa();
 
 %% MVPA - prep
 % with smoothing 0mm
-funcFWHM = 0;
-bidsSmoothing(funcFWHM, opt);
-
-% subject level univariate
-bidsFFX('specifyAndEstimate', opt, funcFWHM);
-bidsFFX('contrasts', opt, funcFWHM);
-
-bidsConcatBetaTmaps(opt, funcFWHM, 0, 0);
+% funcFWHM = 0;
+% bidsSmoothing(funcFWHM, opt);
+% 
+% % subject level univariate
+% bidsFFX('specifyAndEstimate', opt, funcFWHM);
+% bidsFFX('contrasts', opt, funcFWHM);
+% 
+% bidsConcatBetaTmaps(opt, funcFWHM, 0, 0);
 
 
 % with smoothing 2mm

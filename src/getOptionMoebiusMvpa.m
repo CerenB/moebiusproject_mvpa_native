@@ -12,7 +12,7 @@ function opt = getOptionMoebiusMvpa()
     % group of subjects to analyze
     opt.groups = {''};
     % suject to run in each group
-    opt.subjects = {'pil009','pil010', 'pil011'}; %  'pil008', 
+    opt.subjects = {'ctrl001'}; % 
     
     
     % Uncomment the lines below to run preprocessing
@@ -30,8 +30,8 @@ function opt = getOptionMoebiusMvpa()
                                   'cpp_spm');
 
     % task to analyze
-    opt.taskName = 'mototopy';
-%     opt.taskName = 'somatotopy';
+%     opt.taskName = 'mototopy';
+    opt.taskName = 'somatotopy';
 
  
     % Suffix output directory for the saved jobs
@@ -67,9 +67,9 @@ function opt = getOptionMoebiusMvpa()
   opt.mvpa.map4D = {'beta', 't_maps'};
 
   % design info
-  opt.mvpa.nbRun = 3; %6 for somato, 3 for mototopy
+  opt.mvpa.nbRun = 6; %6 for somato, 3 for mototopy fir pilots
   if strcmp(opt.taskName, 'somatotopy')
-     opt.mvpa.nbRun = 6; 
+     opt.mvpa.nbRun = 11; 
   end
 
   opt.mvpa.nbTrialRepetition = 1;

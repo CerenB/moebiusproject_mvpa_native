@@ -11,7 +11,7 @@ function opt = getOptionSearchlight()
   % group of subjects to analyze
   opt.groups = {''};
   % suject to run in each group
-  opt.subjects = {'pil010', 'pil011'}; 
+  opt.subjects = {'ctrl001'}; 
 
   % Uncomment the lines below to run preprocessing
   % - don't use realign and unwarp
@@ -26,8 +26,8 @@ function opt = getOptionSearchlight()
   opt.derivativesDir = fullfile(opt.dataDir, '..', 'derivatives', 'cpp-spm');
 
   % task to analyze
-  opt.taskName = 'mototopy';
-%   opt.taskName = 'somatotopy';
+%   opt.taskName = 'mototopy';
+  opt.taskName = 'somatotopy';
 
  
   % Suffix output directory for the saved jobs
@@ -46,8 +46,8 @@ function opt = getOptionSearchlight()
                             ['model-', opt.taskName,'_audCueParts_smdl.json']);
 
 
-  opt.parallelize.do = true;
-  opt.parallelize.nbWorkers = 4;
+  opt.parallelize.do = false;
+  opt.parallelize.nbWorkers = 1;
   opt.parallelize.killOnExit = true;
 
   %% DO NOT TOUCH
@@ -71,7 +71,7 @@ function opt = getOptionSearchlight()
   opt.mvpa.roiSource = 'wholeBrain';
 
   % design info
-  opt.mvpa.nbRun = 3; % 3 for sub009/sub010/sub011 for moto (sub008 cannot due to 1run)
+  opt.mvpa.nbRun = 11; % 3 for sub009/sub010/sub011 for moto (sub008 cannot due to 1run)
   opt.mvpa.nbTrialRepetition = 1;
 
   % cosmo options
@@ -83,7 +83,7 @@ function opt = getOptionSearchlight()
 
   % Define which classifier to use, using a function handle.
   % Alternatives are @cosmo_classify_{svm,matlabsvm,libsvm,nn,naive_bayes, lda}
-  opt.mvpa.classifier = @cosmo_classify_lda;
-  opt.mvpa.className = 'lda';
+  opt.mvpa.classifier = @cosmo_classify_libsvm;
+  opt.mvpa.className = 'libsvm';
 
 end
