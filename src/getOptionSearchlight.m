@@ -11,7 +11,8 @@ function opt = getOptionSearchlight()
   % group of subjects to analyze
   opt.groups = {''};
   % suject to run in each group
-  opt.subjects = {'ctrl001'}; 
+  opt.subjects = { 'ctrl009'}; 
+               % , 'ctrl011',  ...
 
   % Uncomment the lines below to run preprocessing
   % - don't use realign and unwarp
@@ -65,13 +66,17 @@ function opt = getOptionSearchlight()
   opt.mvpa.sphereType = 'radius'; % 'radius' or 'count'
 
   % set which type of ffx results you want to use
-  opt.mvpa.map4D = {'beta', 't_maps'};
+  opt.mvpa.map4D = {'t_maps'}; %'beta', 
 
   % whole brain or another mask?
   opt.mvpa.roiSource = 'wholeBrain';
 
   % design info
-  opt.mvpa.nbRun = 11; % 3 for sub009/sub010/sub011 for moto (sub008 cannot due to 1run)
+  opt.mvpa.nbRun = 6; %6 for moto, 12 for somato 
+  if strcmp(opt.taskName, 'somatotopy')
+     opt.mvpa.nbRun = 12; 
+  end
+  
   opt.mvpa.nbTrialRepetition = 1;
 
   % cosmo options
@@ -83,7 +88,7 @@ function opt = getOptionSearchlight()
 
   % Define which classifier to use, using a function handle.
   % Alternatives are @cosmo_classify_{svm,matlabsvm,libsvm,nn,naive_bayes, lda}
-  opt.mvpa.classifier = @cosmo_classify_libsvm;
-  opt.mvpa.className = 'libsvm';
+  opt.mvpa.classifier = @cosmo_classify_lda;
+  opt.mvpa.className = 'lda';
 
 end

@@ -12,7 +12,13 @@ function opt = getOptionMoebiusMvpa()
     % group of subjects to analyze
     opt.groups = {''};
     % suject to run in each group
-    opt.subjects = {'ctrl001'}; % 
+    opt.subjects = {'ctrl005', 'ctrl009','ctrl012'};
+               % 'ctrl005', 'ctrl012',
+%                      'ctrl002','ctrl003','ctrl004','ctrl007', ...
+%                   'ctrl008', 'ctrl009', 'ctrl010', 'ctrl011',  ...
+%                   'ctrl013','ctrl014','ctrl015', 'ctrl016','ctrl017'
+
+
     
     
     % Uncomment the lines below to run preprocessing
@@ -69,7 +75,7 @@ function opt = getOptionMoebiusMvpa()
   % design info
   opt.mvpa.nbRun = 6; %6 for somato, 3 for mototopy fir pilots
   if strcmp(opt.taskName, 'somatotopy')
-     opt.mvpa.nbRun = 11; 
+     opt.mvpa.nbRun = 12; 
   end
 
   opt.mvpa.nbTrialRepetition = 1;
