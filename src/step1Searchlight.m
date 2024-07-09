@@ -52,6 +52,9 @@ for iSub = 1:numel(opt.subjects)
     ffxDir = getFFXdir(subID, funcFWHM, opt);
     [~, folderName] = fileparts(ffxDir);
     
+    % update runNb with problematic subjects
+    opt.mvpa.nbRun = updateRunNumber(subID, opt.taskName, opt.mvpa.nbRun);
+    
     % create folder for output
     resultFolder = fullfile(opt.pathOutput,...
         [folderName,  '_',opt.mvpa.roiSource, ...
