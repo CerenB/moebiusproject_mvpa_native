@@ -9,7 +9,7 @@ function step4CreateContrastMaps(maps, funcFWHM2Level)
   % funcFWHM = 0 %  2;
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  opt = getOptionBlockSearchlight();
+  opt = getOptionSearchlight();
 
   if nargin == 0
 

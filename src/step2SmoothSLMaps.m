@@ -42,7 +42,7 @@ function step2SmoothSLMaps(condition, maps, funcFWHM2Level)
                     '*.nii'];
   
   % define where the sl files are
-  slNiiFile = dir(fullfile(resultFolder,['*_', midFilePattern]));
+  slNiiFile = dir(fullfile(resultFolder,['*_', midFilePattern])); %^sub-
   slNiiFile([slNiiFile.isdir]) = [];
 
   

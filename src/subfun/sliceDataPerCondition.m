@@ -44,7 +44,7 @@ switch decodingType
         elseif iCondition == 7
             % Hand vs. Lips
             ds = cosmo_slice(ds,ds.sa.targets == 1 | ds.sa.targets == 4 ) ;
-            textcond = 'ForeheadvsLips';
+            textcond = 'HandvsLips';
         elseif iCondition == 8
             % Lips vs. Tongue
             ds = cosmo_slice(ds,ds.sa.targets == 3 | ds.sa.targets == 4 ) ;

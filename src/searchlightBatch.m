@@ -15,8 +15,12 @@ clc;
   % verify it worked.
   cosmo_check_external('libsvm'); % should not give an error
   
+  % spm fmri
+  warning('off');
+  addpath(genpath('/Users/battal/Documents/MATLAB/spm12'));
+
 %   % add cpp repo
-%   run ../lib/bidspm/initCppSpm.m;
+  run ../lib/bidspm/initCppSpm.m;
   
   % add mini-helper functions
   addpath(genpath(fullfile(pwd, 'subfun')));
@@ -32,3 +36,10 @@ clc;
   maps = 't_maps';
   condition = 'BodyParts5';
   step2SmoothSLMaps(condition, maps, funcFWHM2Level);
+  
+  step3CreateSLResultsMaps(condition,maps, funcFWHM2Level);
+  
+  %%% WIP
+  % need to adjust the file names to be read
+  % need to adjust the chance level according to the condition
+  step4CreateContrastMaps(maps, funcFWHM2Level)
