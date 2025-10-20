@@ -12,15 +12,15 @@ function opt = getOptionMoebiusMvpa()
     % group of subjects to analyze
     opt.groups = {''};
     % suject to run in each group
-    opt.subjects = {'ctrl005', 'ctrl009','ctrl012'};
-               % 'ctrl005', 'ctrl012',
-%                      'ctrl002','ctrl003','ctrl004','ctrl007', ...
-%                   'ctrl008', 'ctrl009', 'ctrl010', 'ctrl011',  ...
-%                   'ctrl013','ctrl014','ctrl015', 'ctrl016','ctrl017'
+%     opt.subjects = {'ctrl014'}; % only in mototopy
 
-
-    
-    
+    opt.subjects = {'mbs001', 'mbs002', 'mbs003', 'mbs004', 'mbs005', ...
+                    'mbs006', 'mbs007', ...
+                    'ctrl001','ctrl002','ctrl003','ctrl004', 'ctrl005', ...
+                    'ctrl007', 'ctrl008', 'ctrl009', 'ctrl010', 'ctrl011',...
+                    'ctrl012','ctrl013', 'ctrl015', 'ctrl016', ...
+                    'ctrl017'}; % 'ctrl014',
+                
     % Uncomment the lines below to run preprocessing
     % - don't use realign and unwarp
     opt.realign.useUnwarp = true;
@@ -34,6 +34,7 @@ function opt = getOptionMoebiusMvpa()
                            '..', '..', '..',  'raw');
     opt.derivativesDir = fullfile(opt.dataDir, '..', 'derivatives', ...
                                   'cpp_spm');
+                         
 
     % task to analyze
 %     opt.taskName = 'mototopy';
@@ -53,9 +54,25 @@ function opt = getOptionMoebiusMvpa()
     opt.pathOutput = fullfile(opt.dataDir, '..', 'derivatives', 'cosmoMvpa');    
     
 
-    opt.roiPath = fullfile(fileparts(mfilename('fullpath')), '..', ...
-                                '..', '..', '..', 'derivatives', 'roi', ...
-                                'atlases', 'spmAnatomy');
+    
+    
+    opt.roi.atlas = 'hcpex';
+    opt.roi.space = {'MNI'};
+    opt.roi.name = {'1', '2', '3a', '3b', '4','6a', '6d', '6v', 'FEF', 'PEF'};
+
+    %define folders for ROI    
+    opt.dir.stats = fullfile(opt.dataDir, '..', 'derivatives', 'cpp_spm-stats');
+    
+    opt.dir.roi = [opt.derivativesDir '-roi'];
+    spm_mkdir(fullfile(opt.dir.roi, 'group'));
+
+    opt.jobsDir = fullfile(opt.dir.roi, 'JOBS', opt.taskName);
+    
+    
+    
+%     opt.roiPath = fullfile(fileparts(mfilename('fullpath')), '..', ...
+%                                 '..', '..', '..', 'derivatives', 'roi', ...
+%                                 'atlases', 'spmAnatomy');
   %% DO NOT TOUCH
   opt = checkOptions(opt);
   saveOptions(opt);
@@ -70,7 +87,7 @@ function opt = getOptionMoebiusMvpa()
   opt.mvpa.ratioToKeep = 150; % 100 150 250 300(364 min for combo)
 
   % set which type of ffx results you want to use
-  opt.mvpa.map4D = {'beta', 't_maps'};
+  opt.mvpa.map4D = {'t_maps'}; % 'beta', 
 
   % design info
   opt.mvpa.nbRun = 6; %6 for somato, 3 for mototopy fir pilots
@@ -86,7 +103,20 @@ function opt = getOptionMoebiusMvpa()
   opt.mvpa.child_classifier = @cosmo_classify_libsvm;
   opt.mvpa.feature_selector = @cosmo_anova_feature_selector;
 
-  % permute the accuracies ?
+  % permute the accuracies
   opt.mvpa.permutate = 1;
+  
+  % do pairwise decoding
+  opt.mvpa.pairs = 1;
+  
+  % multiple options exist for decoding conditions
+  % 1: someselected binary decoding + multiclass decodings
+  % 2: multiclass decoding allBodyParts and omitTongue 
+  % 3: 6bodyparts and Forehead vs Forehead2 (for pilots)
+  % 4: pairwise decoding
+  opt.decodingType = [2,4]; %2
 
+   % want to still run mvpa although the mask is smaller than desired
+  % vx number? 
+  opt.mvpa.useMaskVoxelNumber = 1;
 end

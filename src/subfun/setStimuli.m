@@ -32,7 +32,7 @@ switch decodingType
                         'Forehead', 'Forehead2'};
                 conditionNb = 2;
                 
-    %multiclass decoding FOR 5 body parts
+    %binary decoding with all possible pairs of stimuli set
     case 4 
                 stim = 1:5;
                 labels= {'Hand', 'Feet', 'Tongue', 'Lips',...

@@ -36,7 +36,6 @@ accu = struct( ...
     'subID', [], ...
     'mask', [], ...
     'accuracy', [], ...
-    'decodingCondition', [], ...
     'maskVoxNb', [], ...
     'choosenVoxNb', [], ...
     'image', [], ...
@@ -47,23 +46,27 @@ accu = struct( ...
     'imagePath', []);
 
 count = 1;
-for iDecodingType = 1
+for iDecodingType = opt.decodingType
     for iSub = 1:numel(opt.subjects)
         
         % get FFX path
         subID = opt.subjects{iSub};
         ffxDir = getFFXdir(subID, funcFWHM, opt);
         
+        % update runNb with problematic subjects
+        opt.mvpa.nbRun = updateRunNumber(subID, opt.taskName, opt.mvpa.nbRun);
         
         for iImage = 1:length(opt.mvpa.map4D)
             
             for iMask = 1:length(opt.maskName)
                 
                 % choose the mask
-                mask = fullfile(opt.maskPath, opt.maskName{iMask});
-                
+                %mask = fullfile(opt.maskPath, opt.maskName{iMask});
+                mask = fullfile(opt.maskName{iMask});
+
                 % display the used mask
-                disp(opt.maskName{iMask});
+                p = bids.internal.parse_filename(spm_file(mask, 'filename'));
+                disp(p.filename);
                 
                 % 4D image
                 imageName = ['4D_', opt.mvpa.map4D{iImage}, '_', num2str(funcFWHM), '.nii'];
@@ -103,6 +106,16 @@ for iDecodingType = 1
                     % use the ratios, instead of the voxel number:
                     opt.mvpa.feature_selection_ratio_to_keep = opt.mvpa.ratioToKeep;
                     
+                    
+                    % want to still run mvpa although the mask is smaller than desired
+                    % vx number?
+                    if opt.mvpa.useMaskVoxelNumber
+                        if maskVoxel < opt.mvpa.ratioToKeep
+                            opt.mvpa.feature_selection_ratio_to_keep = maskVoxel;
+                        end
+                    end
+                    
+                    
                     % ROI mvpa analysis
                     [pred, accuracy] = cosmo_crossvalidate(ds, ...
                         @cosmo_classify_meta_feature_selection, ...
@@ -111,7 +124,10 @@ for iDecodingType = 1
                     %% store output
                     accu(count).subID = subID;
                     accu(count).decodingConditions = textCondition;
-                    accu(count).mask = opt.maskLabel{iMask};
+                   % accu(count).mask = opt.maskLabel{iMask};
+                   accu(count).mask = p.filename;
+                   accu(count).maskLabel = p.entities.label;
+                   accu(count).maskHemi = p.entities.hemi;
                     accu(count).maskVoxNb = maskVoxel;
                     accu(count).choosenVoxNb = opt.mvpa.feature_selection_ratio_to_keep;
                     accu(count).image = opt.mvpa.map4D{iImage};
@@ -130,7 +146,7 @@ for iDecodingType = 1
                     % increase the counter and allons y!
                     count = count + 1;
                     
-                    fprintf(['Sub'  subID ' - area: ' opt.maskLabel{iMask} ...
+                    fprintf(['Sub'  subID ' - area: ' p.entities.label ...
                         ', accuracy: ' num2str(accuracy), ...
                         ' - condition: ' textCondition '\n\n\n']);
                 end

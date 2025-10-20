@@ -30,7 +30,14 @@ switch lower(roiSource)
         
 %         opt.maskLabel = {'leftSoma3a', 'rightSoma3a', 'leftSoma3b', ...
 %                         'rightSoma3b'};
-
+    case 'hcpex'
+        
+        opt.maskPath = fullfile(opt.dir.roi, 'group','allRois');
+        
+        opt.maskName = spm_select('FPlist', ...
+                                  opt.maskPath, ...
+                                  '.*space-.*_mask.nii$');
+        opt.maskName = cellstr(opt.maskName);
 end
 
 

@@ -49,3 +49,16 @@ clc;
   roiSource = 'spmAnat';
   extractAndPlotPairwiseDA(opt,roiSource, image);
   
+  %% run decoding in hcpex atlas roi
+  roiSource = 'hcpex'; 
+  accuracy = calculateMvpa(opt, roiSource);
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  

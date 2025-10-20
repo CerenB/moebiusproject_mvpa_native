@@ -82,7 +82,7 @@ switch decodingType
         
         
     case 4
-        % partition the dataset
+        % partition the dataset (slice it) for pairwise decoding
         ds = cosmo_slice(ds,ds.sa.targets == pairs(iCondition,1) | ds.sa.targets == pairs(iCondition,2)) ;
         textcond = [labels{pairs(iCondition,1)},'_vs_',labels{pairs(iCondition,2)}];
         
