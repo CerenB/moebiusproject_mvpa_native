@@ -7,9 +7,16 @@ addpath(fullfile(fileparts(mfilename('fullpath')), '..'));
 warning('off');
 addpath(genpath('/Users/battal/Documents/MATLAB/spm12'));
 
-% then add cpp repo to prevent repo version compatibility issue
-run ../lib/bidspm/initCppSpm.m;
+this_dir = fullfile('/Volumes/extreme/Cerens_files/fMRI', ...
+                      'moebius_topo_analyses/code/src/mvpa');
+  addpath(fullfile(this_dir, '..', '..', 'lib', 'bidspm'), '-begin');
 
+% add mini-helper functions
+addpath(genpath(fullfile(pwd, 'subfun')));
+
+
+% stopped here for now, 23/10/2025
+% not sure if we need getOptionMoebiusMvpa here
 % lastly, we add all the subfunctions that are in the sub directories
 opt = getOptionMoebiusMvpa();
 

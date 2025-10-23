@@ -7,7 +7,7 @@ function accu = calculatePairwiseMvpa(opt, roiSource)
 % as .mat file
 
 % get the smoothing parameter for 4D map
-funcFWHM = opt.funcFWHM;
+funcFWHM = opt.fwhm.func;
 
 
 
@@ -33,7 +33,9 @@ savefileCsv = fullfile(opt.pathOutput, ...
 % set structure array for keeping the results
 accu = struct( ...
     'subID', [], ...
-    'mask', [], ...
+    'maskHemi', [], ...
+    'maskArea', [], ...
+    'maskFull', [], ...
     'accuracy', [], ...
     'prediction', [], ...
     'maskVoxNb', [], ...
@@ -46,15 +48,16 @@ accu = struct( ...
     'imagePath', []);
 
 count = 1;
-for iDecodingType = 4 % pairwise decoding type
-    for iSub = 1:numel(opt.subjects)
+for iDecodingType = opt.decodingType  % pairwise decoding type
+    for iSub = 1:numel(opt.subject_label)
+        
+        subID = ['sub-' opt.subject_label{iSub}];
         
         % choose masks - T1w space, changes with subject
-        opt = chooseMask(opt, roiSource);
+        opt = chooseMask(opt, roiSource, subID);
 
         % get FFX path
-        subID = opt.subjects{iSub};
-        ffxDir = getFFXdir(subID, funcFWHM, opt);
+        ffxDir = getFFXdir(subID, opt);
         
         
         for iImage = 1:length(opt.mvpa.map4D)
@@ -113,7 +116,9 @@ for iDecodingType = 4 % pairwise decoding type
                     %% store output
                     accu(count).subID = subID;
                     accu(count).decodingConditions = textCondition;
-                    accu(count).mask = opt.maskLabel{iMask};
+                    accu(count).maskHemi = opt.maskLabel{iMask}.hemi;
+                    accu(count).maskArea = opt.maskLabel{iMask}.area;
+                    accu(count).maskFull = opt.maskLabel{iMask}.full;
                     accu(count).maskVoxNb = maskVoxel;
                     accu(count).choosenVoxNb = opt.mvpa.feature_selection_ratio_to_keep;
                     accu(count).image = opt.mvpa.map4D{iImage};

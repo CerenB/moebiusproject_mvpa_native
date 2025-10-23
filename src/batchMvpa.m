@@ -4,7 +4,7 @@ clc;
 %% set paths
 
   this_dir = fullfile('/Volumes/extreme/Cerens_files/fMRI', ...
-                      'moebius_topo_analyses/code/src/moebiusproject_mvpa');
+                      'moebius_topo_analyses/code/src/mvpa');
   addpath(fullfile(this_dir, '..', '..', 'lib', 'bidspm'), '-begin');
 
   % spm
@@ -38,21 +38,22 @@ clc;
   opt.pathOutput = fullfile(output_dir,'cosmoMvpa', 'roi'); 
   
   % mask
-  opt.maskFiles = fullfile('/Volumes/extreme/Cerens_files/fMRI', ...
+  opt.maskPath = fullfile('/Volumes/extreme/Cerens_files/fMRI', ...
                            'GlasserAtlas/Glasser_ROIs_sensorimotor/', ...
                            'volumetric_ROIs');
   
 
   % load your options
-  task = {'mototopy'}; % 'mototopy' somatotopy
-
-  space = {'T1w'};
-
+  opt.taskName = {'mototopy'}; % 'mototopy' somatotopy
+  opt.space = {'T1w'};
   verbosity = 3;
+  opt.bidsFilterFile.bold = struct('modality', 'func', 'suffix', 'bold');
+  opt.fwhm.func = 2;
+
 
   % no data collected: '06' 
   %  sub-ctrl014 only mototopy exp
-  subject_label = {'ctrl001'}; 
+  opt.subject_label = {'ctrl001'}; 
 
 % 'mbs001', 'mbs002' , 'mbs003', 'mbs004', 'mbs005', ...
 % 'mbs006', 'mbs007', ...
@@ -64,9 +65,6 @@ clc;
 % make sure those steps are done before running this script
   
   %% mvpa options
-  % define the 4D maps to be used
-  opt.funcFWHM = 2;
-
   % take the most responsive xx nb of voxels
   opt.mvpa.ratioToKeep = 150; % 100 150 250 300(364 min for combo)
 
@@ -75,7 +73,7 @@ clc;
 
   % design info
   opt.mvpa.nbRun = 6; %6 for somato, 3 for mototopy fir pilots
-  if strcmp(task, 'somatotopy')
+  if strcmp(opt.taskName, 'somatotopy')
      opt.mvpa.nbRun = 12; 
   end
 
@@ -98,7 +96,7 @@ clc;
   % 2: multiclass decoding allBodyParts and omitTongue 
   % 3: 6bodyparts and Forehead vs Forehead2 (for pilots)
   % 4: pairwise decoding
-  opt.decodingType = [2,4]; %2
+  opt.decodingType = [4]; %2
 
    % want to still run mvpa although the mask is smaller than desired
   % vx number? 
