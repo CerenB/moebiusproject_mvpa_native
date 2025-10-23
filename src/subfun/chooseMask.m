@@ -5,7 +5,7 @@ function [opt] = chooseMask(opt, roiSource)
 
 % action 1: atlas SPM Anatomy - MNI
 % action 2: atlas HCPex - MNI
-% action 3: 
+% action 3: glassier atlas - T1w space
 % action 4: 
 
 switch lower(roiSource)
@@ -38,6 +38,16 @@ switch lower(roiSource)
                                   opt.maskPath, ...
                                   '.*space-.*_mask.nii$');
         opt.maskName = cellstr(opt.maskName);
+        
+    case 'glassier'
+        
+        opt.maskPath = opt.maskFiles;
+        
+        opt.maskName = spm_select('FPlist', ...
+                                  opt.maskPath, ...
+                                  '.*space-.*_mask.nii$');
+        opt.maskName = cellstr(opt.maskName);
+        
 end
 
 

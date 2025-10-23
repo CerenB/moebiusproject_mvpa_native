@@ -9,8 +9,7 @@ function accu = calculatePairwiseMvpa(opt, roiSource)
 % get the smoothing parameter for 4D map
 funcFWHM = opt.funcFWHM;
 
-% choose masks to be used
-opt = chooseMask(opt, roiSource);
+
 
 %% set output folder/name
 savefileMat = fullfile(opt.pathOutput, ...
@@ -50,6 +49,9 @@ count = 1;
 for iDecodingType = 4 % pairwise decoding type
     for iSub = 1:numel(opt.subjects)
         
+        % choose masks - T1w space, changes with subject
+        opt = chooseMask(opt, roiSource);
+
         % get FFX path
         subID = opt.subjects{iSub};
         ffxDir = getFFXdir(subID, funcFWHM, opt);
