@@ -12,6 +12,8 @@ if nargin < 3
     subID = [];
 end
 
+subID = ['sub-' subID];  % Construct subID here
+
 switch lower(roiSource)
     
 
@@ -46,9 +48,10 @@ switch lower(roiSource)
         end
         
         % Build path to subject-specific mask folder        
+        % Only select files containing 'binary' in the filename
         opt.maskName = spm_select('FPlist', ...
                                   fullfile(opt.maskPath, subID), ...
-                                  '.*\.nii(\.gz)?$');
+                                  '.*binary.*\.nii(\.gz)?$');
         opt.maskName = cellstr(opt.maskName);
         
         % Extract labels from filenames for output
