@@ -19,7 +19,7 @@ clc;
   addpath(genpath(fullfile(pwd, 'subfun')));
 
   % libsvm
-  setup_libsvm();
+  addpath('~/Documents/MATLAB/libsvm/matlab');
   
   % add cpp repo
   bidspm();
@@ -30,12 +30,12 @@ clc;
   bids_dir = fullfile(yoda_dir, 'inputs', 'raw');
 
   % 4D files
-  output_dir = fullfile(yoda_dir, 'outputs', 'derivatives', 'bidspm-stats');
-
-  model_file = fullfile(this_dir, 'models', 'model-mototopy_bidspm_audCueParts_smdl.json');
+  opt.dir.stats = fullfile(yoda_dir, 'outputs', 'derivatives', 'bidspm-stats');
+  opt.model.file = fullfile(this_dir, '..', 'bidspm-stats', 'models', ...
+                            'model-somatotopy_bidspm_audCueParts_smdl.json');
   
   % output 
-  opt.pathOutput = fullfile(output_dir,'cosmoMvpa', 'roi'); 
+  opt.pathOutput = fullfile(opt.dir.stats,'..', 'cosmoMvpa', 'roi'); 
   
   % mask
   opt.maskPath = fullfile('/Volumes/extreme/Cerens_files/fMRI', ...
@@ -44,16 +44,23 @@ clc;
   
 
   % load your options
-  opt.taskName = {'mototopy'}; % 'mototopy' somatotopy
+  opt.taskName = {'somatotopy'}; % 'mototopy' somatotopy
   opt.space = {'T1w'};
   verbosity = 3;
   opt.bidsFilterFile.bold = struct('modality', 'func', 'suffix', 'bold');
   opt.fwhm.func = 2;
-
+  opt.model.file = spm_file(opt.model.file, 'basename', 'model-somatotopy_bidspm_audCueParts_smdl');
+  opt.model.bm = BidsModel('file', opt.model.file);
 
   % no data collected: '06' 
   %  sub-ctrl014 only mototopy exp
-  opt.subject_label = {'ctrl001'}; 
+  opt.subjects = {'ctrl001', 'ctrl002','ctrl003','ctrl004', 'ctrl005', ...
+                  'ctrl007', 'ctrl008', 'ctrl009', 'ctrl010', 'ctrl011', ...
+                  'ctrl012', 'ctrl013', 'ctrl015', 'ctrl016', ...
+                  'ctrl017', 'mbs001', 'mbs002' , 'mbs003', 'mbs004', ...
+                  'mbs005', 'mbs006', 'mbs007'}; 
+              
+
 
 % 'mbs001', 'mbs002' , 'mbs003', 'mbs004', 'mbs005', ...
 % 'mbs006', 'mbs007', ...
@@ -66,10 +73,10 @@ clc;
   
   %% mvpa options
   % take the most responsive xx nb of voxels
-  opt.mvpa.ratioToKeep = 150; % 100 150 250 300(364 min for combo)
+  opt.mvpa.ratioToKeep = 250; % 100 150 250 300(364 min for combo)
 
   % set which type of ffx results you want to use
-  opt.mvpa.map4D = {'t_maps'}; % 'beta', 
+  opt.mvpa.map4D = {'tmap'}; % 'beta', 
 
   % design info
   opt.mvpa.nbRun = 6; %6 for somato, 3 for mototopy fir pilots
@@ -131,6 +138,8 @@ clc;
 %   accuracy = calculateMvpa(opt, roiSource);
   
   %% run pairwise MVPA
+  opt = checkOptions(opt); % needed for getffxdir function
+  
   roiSource = 'glassier'; 
   opt.mvpa.pairs = 1;
   accuracy = calculatePairwiseMvpa(opt, roiSource);

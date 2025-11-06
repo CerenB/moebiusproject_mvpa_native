@@ -11,22 +11,19 @@ funcFWHM = opt.fwhm.func;
 
 
 
-%% set output folder/name
-savefileMat = fullfile(opt.pathOutput, ...
-    [opt.taskName, ...
-    'PairwiseDecoding_', ...
-    roiSource, ...
-    '_s', num2str(funcFWHM), ...
-    '_voxNb', num2str(opt.mvpa.ratioToKeep), ...
-    '_', datestr(now, 'yyyymmddHHMM'), '.mat']);
+%% set output folder/name (ensure a single filename string)
+if iscell(opt.taskName)
+    taskNameStr = opt.taskName{1};
+else
+    taskNameStr = opt.taskName;
+end
+ts = datestr(now, 'yyyymmddHHMM');
+baseName = sprintf('%sPairwiseDecoding_%s_s%s_voxNb%d_%s', ...
+                   taskNameStr, roiSource, num2str(funcFWHM), ...
+                   opt.mvpa.ratioToKeep, ts);
 
-savefileCsv = fullfile(opt.pathOutput, ...
-    [opt.taskName, ...
-    'PairwiseDecoding_', ...
-    roiSource, ...
-    '_s', num2str(funcFWHM), ...
-    '_voxNb', num2str(opt.mvpa.ratioToKeep ), ...
-    '_', datestr(now, 'yyyymmddHHMM'), '.csv']);
+savefileMat = fullfile(opt.pathOutput, [baseName, '.mat']);
+savefileCsv = fullfile(opt.pathOutput, [baseName, '.csv']);
 
 %% let's get going!
 
@@ -49,9 +46,9 @@ accu = struct( ...
 
 count = 1;
 for iDecodingType = opt.decodingType  % pairwise decoding type
-    for iSub = 1:numel(opt.subject_label)
+    for iSub = 1:numel(opt.subjects)
         
-        subID = ['sub-' opt.subject_label{iSub}];
+       subID = opt.subjects{iSub};
         
         % choose masks - T1w space, changes with subject
         opt = chooseMask(opt, roiSource, subID);
@@ -59,19 +56,27 @@ for iDecodingType = opt.decodingType  % pairwise decoding type
         % get FFX path
         ffxDir = getFFXdir(subID, opt);
         
+        % update runNb with problematic subjects
+        opt.mvpa.nbRun = updateRunNumber(subID, opt.taskName, opt.mvpa.nbRun);
         
         for iImage = 1:length(opt.mvpa.map4D)
             
             for iMask = 1:length(opt.maskName)
                 
                 % choose the mask
-                mask = fullfile(opt.maskPath, opt.maskName{iMask});
+                mask = opt.maskName{iMask};
                 
                 % display the used mask
-                disp(opt.maskName{iMask});
+                disp(opt.maskLabel{iMask}.full);
                 
                 % 4D image
-                imageName = ['4D_', opt.mvpa.map4D{iImage}, '_', num2str(funcFWHM), '.nii'];
+                imageName = ['sub-' subID, ...
+                             '_task-', opt.taskName{1}, ...
+                             '_space-', opt.space{1}, ...
+                             '_desc-4D_', opt.mvpa.map4D{iImage}, '.nii'];
+
+                             
+               % sub-ctrl001_task-mototopy_space-T1w_desc-4D_beta.nii
                 image = fullfile(ffxDir, imageName);
                 
                 %extract decoding conditions and set stimuli
@@ -137,9 +142,15 @@ for iDecodingType = opt.decodingType  % pairwise decoding type
                     % increase the counter and allons y!
                     count = count + 1;
                     
-                    fprintf(['Sub'  subID ' - area: ' opt.maskLabel{iMask} ...
-                        ', accuracy: ' num2str(accuracy), ...
-                        ' - condition: ' textCondition '\n\n\n']);
+                    % Extract mask label (handle struct or string)
+                    if isstruct(opt.maskLabel{iMask})
+                        maskLabelStr = opt.maskLabel{iMask}.full;
+                    else
+                        maskLabelStr = opt.maskLabel{iMask};
+                    end
+                    
+                    fprintf('Sub%s - area: %s, accuracy: %.3f - condition: %s\n\n\n', ...
+                        subID, maskLabelStr, accuracy, textCondition);
                 end
             end
         end
