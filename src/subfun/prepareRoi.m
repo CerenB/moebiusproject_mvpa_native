@@ -1,15 +1,5 @@
 function [roiName] = prepareRoi(opt, binaryMap, dataImage)
 
-
-% prepare the rois
-
-if opt.unzip.do
-    gunzip(fullfile('inputs', '*.gz'));
-end
-
-% give the neurosynth map a name that is more bids friendly
-binaryMap = renameMask(binaryMap);
-
 if opt.reslice.do
     % If needed reslice probability map to have same resolution as the data image
     %
