@@ -64,6 +64,12 @@ for iSub = 1:length(subjects)
     ffxDir = fullfile(statsBaseDir, subLabel, ...
                       ['task-', opt.taskName{1}, '_space-T1w_FWHM-2']);
     roiPath = fullfile(roiBasePath, subLabel);
+    roiOutputPath = fullfile(roiBasePath, 'binary', subLabel);
+    
+    % Create output directory if needed
+    if ~exist(roiOutputPath, 'dir')
+        mkdir(roiOutputPath);
+    end
     
     % Check if subject directories exist
     if ~exist(ffxDir, 'dir')
@@ -128,7 +134,7 @@ for iSub = 1:length(subjects)
         try
             % Create binary version with _binary suffix
             binaryName = [maskName, '_binary.nii'];
-            opt.outputDir = roiPath;
+            opt.outputDir = roiOutputPath;
             [voxelNb] = binarizeImage(originalMask, binaryName, opt);
             fprintf('    ✓ Created %s with %d voxels\n', binaryName, ...
                     voxelNb);
@@ -140,7 +146,7 @@ for iSub = 1:length(subjects)
     
     %% Step 2: Find all binary masks and reslice them
     fprintf('\n--- Step 2: Reslicing and re-binarizing binary masks ---\n');
-    binaryMasks = spm_select('FPList', roiPath, '.*binary.*\.nii$');
+    binaryMasks = spm_select('FPList', roiOutputPath, '.*binary.*\.nii$');
     
     if isempty(binaryMasks)
         warning('No binary masks found for %s in: %s', subLabel, roiPath);
