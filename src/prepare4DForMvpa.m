@@ -9,7 +9,9 @@ addpath(genpath('/Users/battal/Documents/MATLAB/spm12'));
 
 this_dir = fullfile('/Volumes/extreme/Cerens_files/fMRI', ...
                       'moebius_topo_analyses/code/src/mvpa');
-  addpath(fullfile(this_dir, '..', '..', 'lib', 'bidspm'), '-begin');
+addpath(fullfile(this_dir, '..', '..', 'lib', 'bidspm'), '-begin');
+
+bidspm();
 
 % add mini-helper functions
 addpath(genpath(fullfile(pwd, 'subfun')));
@@ -17,7 +19,7 @@ addpath(genpath(fullfile(pwd, 'subfun')));
 
 % not sure if we need getOptionMoebiusMvpa here
 % opt = getOptionMoebiusMvpa();
-opt.taskName = {'somatotopy'}; % 'mototopy' somatotopy
+opt.taskName = {'mototopy'}; % mototopy somatotopy
 
 %% Set options
 opt.threshold = 0.0;  % Binary threshold: >0 becomes 1, <=0 becomes 0
@@ -31,12 +33,14 @@ else
 end
 
 %% Define participants
-subjects = {'ctrl004', 'ctrl005', 'ctrl007', ...
-            'ctrl008', 'ctrl009', 'ctrl010', 'ctrl011', 'ctrl012', ...
-            'ctrl013', 'ctrl014', 'ctrl015', 'ctrl016', 'ctrl017', ...
-            'mbs001', 'mbs002', 'mbs003', 'mbs004', 'mbs005', ...
-            'mbs006', 'mbs007'};
-subjects = {'ctrl001'}; % --- IGNORE ---
+subjects = {'ctrl001', 'ctrl002', 'ctrl003', 'ctrl004', 'ctrl005', ...
+            'ctrl007', 'ctrl008', 'ctrl009', 'ctrl010', 'ctrl011', ...
+            'ctrl012', 'ctrl013', 'ctrl014', 'ctrl015', 'ctrl016', ...
+            'ctrl017', 'mbs001', 'mbs002', 'mbs003', 'mbs004', ...
+            'mbs005', 'mbs006', 'mbs007'};
+            
+% 'ctrl014' - only mototopy
+% subjects = {'ctrl001'};
 
 %% Define base paths
 statsBaseDir = fullfile('/Volumes/extreme/Cerens_files/fMRI/', ...
@@ -57,26 +61,31 @@ for iSub = 1:length(subjects)
     fprintf('========================================\n');
     
     % Define subject-specific paths
-    ffxDir = fullfile(statsBaseDir, subLabel, ['task-', opt.taskName{1}, '_space-T1w_FWHM-2']);
+    ffxDir = fullfile(statsBaseDir, subLabel, ...
+                      ['task-', opt.taskName{1}, '_space-T1w_FWHM-2']);
     roiPath = fullfile(roiBasePath, subLabel);
     
     % Check if subject directories exist
     if ~exist(ffxDir, 'dir')
-        warning('Stats directory not found for %s, skipping: %s', subLabel, ffxDir);
+        warning('Stats directory not found for %s, skipping: %s', ...
+                subLabel, ffxDir);
         continue;
     end
     
     if ~exist(roiPath, 'dir')
-        warning('ROI directory not found for %s, skipping: %s', subLabel, roiPath);
+        warning('ROI directory not found for %s, skipping: %s', ...
+                subLabel, roiPath);
         continue;
     end
     
     % 4D image (reference for reslicing)
-    imageName = sprintf('%s_task-%s_space-T1w_desc-4D_tmap.nii', subLabel, opt.taskName{1});
+    imageName = sprintf('%s_task-%s_space-T1w_desc-4D_tmap.nii', ...
+                        subLabel, opt.taskName{1});
     dataImage = fullfile(ffxDir, imageName);
     
     if ~exist(dataImage, 'file')
-        warning('4D tmap not found for %s, skipping: %s', subLabel, dataImage);
+        warning('4D tmap not found for %s, skipping: %s', ...
+                subLabel, dataImage);
         continue;
     end
     
@@ -86,7 +95,7 @@ for iSub = 1:length(subjects)
         warning('Functional mask not found for %s, skipping', subLabel);
         continue;
     end
-    [voxelNbMask, dim] = voxelCountAndDimensions(maskImage);
+    [voxelNbMask, dimData] = voxelCountAndDimensions(maskImage);
     fprintf('Functional data dimensions: [%d %d %d]\n', dimData);
     fprintf('Functional data dimensions: %d\n', voxelNbMask);
     
@@ -113,15 +122,16 @@ for iSub = 1:length(subjects)
             [~, maskName, ~] = fileparts(maskName);
         end
         
-        fprintf('  Binarizing %d/%d: %s\n', iMask, length(allMasks), maskName);
+        fprintf('   Binarizing %d/%d: %s\n', iMask, length(allMasks), ...
+                maskName);
         
         try
             % Create binary version with _binary suffix
             binaryName = [maskName, '_binary.nii'];
-            optBinarize = opt;
-            optBinarize.outputDir = maskDir;
-            [voxelNb] = binarizeImage(originalMask, binaryName, optBinarize);
-            fprintf('    ✓ Created %s with %d voxels\n', binaryName, voxelNb);
+            opt.outputDir = roiPath;
+            [voxelNb] = binarizeImage(originalMask, binaryName, opt);
+            fprintf('    ✓ Created %s with %d voxels\n', binaryName, ...
+                    voxelNb);
         catch ME
             warning('    Failed to binarize %s: %s', maskName, ME.message);
             continue;
@@ -145,25 +155,29 @@ for iSub = 1:length(subjects)
         binaryMap = binaryMasks{iMask};
         [~, maskName, maskExt] = fileparts(binaryMap);
         
-        fprintf('\n  Processing mask %d/%d: %s\n', iMask, length(binaryMasks), [maskName, maskExt]);
+        fprintf('\n  Processing mask %d/%d: %s\n', iMask, ...
+                length(binaryMasks), [maskName, maskExt]);
         
         try
             % Check dimensions before reslicing
             [voxelNbRaw, dimRaw] = voxelCountAndDimensions(binaryMap);
-            fprintf('    Original ROI dimensions: [%d %d %d], voxels: %d\n', dimRaw, voxelNbRaw);
+            fprintf('    Original ROI dimensions: [%d %d %d],', ...
+                    ' voxels: %d\n', dimRaw, voxelNbRaw);
             
             % Reslice the mask to match functional data dimensions
             fprintf('    Reslicing ROI to match functional data...\n');
             reslicedRoi = prepareRoi(opt, binaryMap, dataImage);
             
-            % Re-binarize to ensure only 0s and 1s (reslicing can introduce interpolated values)
+            % Re-binarize to ensure only 0s and 1s 
+            % (reslicing can introduce interpolated values)
             opt.threshold = 0.2; % use higher threshold for resliced data
             fprintf('    Re-binarizing resliced ROI...\n');
             binarizeImage(reslicedRoi, reslicedRoi, opt);
             
             finalRoi = reslicedRoi;
             [voxelNb, dimRoi] = voxelCountAndDimensions(finalRoi);
-            fprintf('    Final ROI dimensions: [%d %d %d], voxels: %d\n', dimRoi, voxelNb);
+            fprintf('    Final ROI dimensions: [%d %d %d], voxels: %d\n', ...
+                    dimRoi, voxelNb);
             
             % Verify dimensions match
             if ~isequal(dimRoi, dimData)
@@ -174,7 +188,8 @@ for iSub = 1:length(subjects)
             end
             
         catch ME
-            warning('    Failed to process mask %s: %s', [maskName, maskExt], ME.message);
+            warning('    Failed to process mask %s: %s', ...
+                    [maskName, maskExt], ME.message);
             continue;
         end
     end
