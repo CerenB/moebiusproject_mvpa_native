@@ -6,7 +6,7 @@ function [opt] = chooseMask(opt, roiSource, subID)
 % action 1: atlas SPM Anatomy - MNI
 % action 2: atlas HCPex - MNI
 % action 3: glassier atlas - T1w space
-% action 4: 
+% action 4: glassierExclusive - T1w space, exclusive masks with no overlap
 
 if nargin < 3
     subID = [];
@@ -57,6 +57,23 @@ switch lower(roiSource)
         % Extract labels from filenames for output
         opt.maskLabel = cellfun(@(x) extractMaskLabel(x), opt.maskName, 'UniformOutput', false);
         
+    case 'glassierexclusive'
+        
+        % Check if subID was provided
+        if isempty(subID)
+            error('chooseMask:missingSubID', ...
+                  'subID is required when using glassierExclusive ROI source');
+        end
+        
+        % Build path to subject-specific exclusive masks folder        
+        % Only select files containing 'exclusive' in the filename
+        opt.maskName = spm_select('FPlist', ...
+                                  fullfile(opt.maskPath, 'exclusiveMasks', subID), ...
+                                  '.*exclusive.*\.nii(\.gz)?$');
+        opt.maskName = cellstr(opt.maskName);
+        
+        % Extract labels from filenames for output
+        opt.maskLabel = cellfun(@(x) extractMaskLabel(x), opt.maskName, 'UniformOutput', false);
         
 end
 

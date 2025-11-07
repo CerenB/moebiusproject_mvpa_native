@@ -110,16 +110,34 @@ clc;
   % vx number? 
   opt.mvpa.useMaskVoxelNumber = 1;
   
-  %% run pairwise MVPA
-  opt = checkOptions(opt); % needed for getffxdir function
+  % needed for getffxdir function
+  opt = checkOptions(opt); 
   
+  %% run pairwise MVPA
   roiSource = 'glassier'; 
   opt.mvpa.pairs = 1;
   accuracy = calculatePairwiseMvpa(opt, roiSource);
   
   
+  %% Optional: Create exclusive masks (remove overlapping voxels)
+  % Batch process all subjects to create exclusive masks:
+  
+  % Define which mask pairs to check for overlap
+  % Each pair removes overlapping voxels between area3a_3b and area4
+  maskPairs = {{'L_area3a_3b_binary.nii', 'L_area4_binary.nii'}, ...
+               {'R_area3a_3b_binary.nii', 'R_area4_binary.nii'}};
+  
+  % Run batch processing for all subjects
+  createExclusiveMasks(opt, maskPairs);
+  
+  % Alternative: area3a_3b_2_1 vs area4
+  maskPairs = {{'L_area3a_3b_2_1_binary.nii', 'L_area4_binary.nii'}, ...
+               {'R_area3a_3b_2_1_binary.nii', 'R_area4_binary.nii'}};
+  createExclusiveMasks(opt, maskPairs);
   
   
-  
-  
+  % run pairwise MVPa with exclusive masks
+  roiSource = 'glassierexclusive'; 
+  opt.mvpa.pairs = 1; 
+  accuracy = calculatePairwiseMvpa(opt, roiSource);
   
