@@ -31,8 +31,7 @@ clc;
 
   % 4D files
   opt.dir.stats = fullfile(yoda_dir, 'outputs', 'derivatives', 'bidspm-stats');
-  opt.model.file = fullfile(this_dir, '..', 'bidspm-stats', 'models', ...
-                            'model-somatotopy_bidspm_audCueParts_smdl.json');
+  
   
   % output 
   opt.pathOutput = fullfile(opt.dir.stats,'..', 'cosmoMvpa', 'roi'); 
@@ -44,12 +43,14 @@ clc;
   
 
   % load your options
-  opt.taskName = {'somatotopy'}; % 'mototopy' somatotopy
+  opt.taskName = {'mototopy'}; % mototopy somatotopy
   opt.space = {'T1w'};
   verbosity = 3;
   opt.bidsFilterFile.bold = struct('modality', 'func', 'suffix', 'bold');
   opt.fwhm.func = 2;
-  opt.model.file = spm_file(opt.model.file, 'basename', 'model-somatotopy_bidspm_audCueParts_smdl');
+  opt.model.file = fullfile(this_dir, '..', 'bidspm-stats', 'models', ...
+                            ['model-',opt.taskName{1}, ...
+                            '_bidspm_mvpa_smdl.json']);
   opt.model.bm = BidsModel('file', opt.model.file);
 
   % no data collected: '06' 
@@ -80,7 +81,7 @@ clc;
 
   % design info
   opt.mvpa.nbRun = 6; %6 for somato, 3 for mototopy fir pilots
-  if strcmp(opt.taskName, 'somatotopy')
+  if strcmp(opt.taskName{1}, 'somatotopy')
      opt.mvpa.nbRun = 12; 
   end
 
@@ -108,34 +109,6 @@ clc;
    % want to still run mvpa although the mask is smaller than desired
   % vx number? 
   opt.mvpa.useMaskVoxelNumber = 1;
-
-%   %% run mvpa 
-%   roiSource = 'spmAnat'; 
-%   accuracy = calculateMvpa(opt, roiSource);
-%   
-%   %% run pairwise MVPA
-%   roiSource = 'spmAnat'; 
-%   opt.mvpa.pairs = 1;
-%   accuracy = calculatePairwiseMvpa(opt, roiSource);
-% 
-%   %% extract DSMs
-%   % example call: extract_DSM(opt,roiSource, action)
-%   extract_DSM(opt,roiSource)
-%   
-%   %% plot DSMs
-%   roi = 'somato3';
-%   image = 'beta';
-%   condition = 'BodyParts5';
-%   plotMDS(opt, roi, image)
-%   
-%   %% extract and plot pairwise DSMs
-%   image = 'beta'; %'t_maps'
-%   roiSource = 'spmAnat';
-%   extractAndPlotPairwiseDA(opt,roiSource, image);
-%   
-%   %% run decoding in hcpex atlas roi
-%   roiSource = 'hcpex'; 
-%   accuracy = calculateMvpa(opt, roiSource);
   
   %% run pairwise MVPA
   opt = checkOptions(opt); % needed for getffxdir function
