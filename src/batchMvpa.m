@@ -43,7 +43,7 @@ clc;
   
 
   % load your options
-  opt.taskName = {'mototopy'}; % mototopy somatotopy
+  opt.taskName = {'somatotopy'}; % mototopy somatotopy
   opt.space = {'T1w'};
   verbosity = 3;
   opt.bidsFilterFile.bold = struct('modality', 'func', 'suffix', 'bold');
@@ -60,7 +60,7 @@ clc;
                   'ctrl012', 'ctrl013', 'ctrl015', 'ctrl016', ...
                   'ctrl017', 'mbs001', 'mbs002' , 'mbs003', 'mbs004', ...
                   'mbs005', 'mbs006', 'mbs007'}; 
-              
+  %opt.subjects = {'ctrl014'};            
 
 
 % 'mbs001', 'mbs002' , 'mbs003', 'mbs004', 'mbs005', ...
@@ -120,23 +120,24 @@ clc;
   
   
   %% Optional: Create exclusive masks (remove overlapping voxels)
-  % Batch process all subjects to create exclusive masks:
-  
-  % Define which mask pairs to check for overlap
-  % Each pair removes overlapping voxels between area3a_3b and area4
-  maskPairs = {{'L_area3a_3b_binary.nii', 'L_area4_binary.nii'}, ...
-               {'R_area3a_3b_binary.nii', 'R_area4_binary.nii'}};
-  
-  % Run batch processing for all subjects
-  createExclusiveMasks(opt, maskPairs);
-  
-  % Alternative: area3a_3b_2_1 vs area4
-  maskPairs = {{'L_area3a_3b_2_1_binary.nii', 'L_area4_binary.nii'}, ...
-               {'R_area3a_3b_2_1_binary.nii', 'R_area4_binary.nii'}};
-  createExclusiveMasks(opt, maskPairs);
+%   % Batch process all subjects to create exclusive masks:
+%   
+%   % Define which mask pairs to check for overlap
+%   % Each pair removes overlapping voxels between area3a_3b and area4
+%   maskPairs = {{'L_area3a_3b_binary.nii', 'L_area4_binary.nii'}, ...
+%                {'R_area3a_3b_binary.nii', 'R_area4_binary.nii'}};
+%   
+%   % Run batch processing for all subjects
+%   createExclusiveMasks(opt, maskPairs);
+%   
+%   % Alternative: area3a_3b_2_1 vs area4
+%   maskPairs = {{'L_area3a_3b_2_1_binary.nii', 'L_area4_binary.nii'}, ...
+%                {'R_area3a_3b_2_1_binary.nii', 'R_area4_binary.nii'}};
+%   createExclusiveMasks(opt, maskPairs);
   
   
   % run pairwise MVPa with exclusive masks
+  % note from 7/11/2025 - rerun somatotopy with glassierexclusive masks
   roiSource = 'glassierexclusive'; 
   opt.mvpa.pairs = 1; 
   accuracy = calculatePairwiseMvpa(opt, roiSource);

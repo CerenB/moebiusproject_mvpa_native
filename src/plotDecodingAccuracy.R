@@ -14,12 +14,19 @@ path_results <- paste("/Volumes/extreme/Cerens_files/fMRI",
 #####
 
 # first read the pairwise somatotopy
-datas <- read.csv(paste(path_results,
-                        "somatotopyPairwiseDecoding_glassier_s2_voxNb250_202511041651.csv",
-                        sep = "/"))
-datam <- read.csv(paste(path_results,
-                        "mototopyPairwiseDecoding_glassier_s2_voxNb250_202511041121.csv",
-                        sep = "/"))
+datas <- read.csv(paste0(path_results,
+                         paste0("somatotopyPairwiseDecoding_glassierexclusive_",
+                                "s2_voxNb250_202511111530.csv")))
+datam <- read.csv(paste0(path_results,
+                         paste0("mototopyPairwiseDecoding_glassierexclusive_",
+                                "s2_voxNb250_202511071625.csv")))
+# exclusive masks
+# somatotopyPairwiseDecoding_glassierexclusive_s2_voxNb250_202511111530
+# mototopyPairwiseDecoding_glassierexclusive_s2_voxNb250_202511071625
+
+# non exclusive masks (overlapping voxels between sensorimotor masks)
+# somatotopyPairwiseDecoding_glassier_s2_voxNb250_202511061646
+# mototopyPairwiseDecoding_glassier_s2_voxNb250_202511071357
 
 datam$Exp <- "moto"
 datas$Exp <- "somato"
@@ -38,8 +45,11 @@ unique(data$decodingConditions)
 
 # Ensure the required columns are present
 data <- data %>%
-  select(subID, maskLabel,  accuracy, maskHemi,
+  select(subID, maskArea,  accuracy, maskHemi,
          maskVoxNb, image, decodingConditions, Exp)
+
+# Remove "_binary_exclusive" from maskArea
+data$maskArea <- gsub("_binary_exclusive", "", data$maskArea)
 
 head(data)
 
@@ -50,7 +60,7 @@ data <- data %>%
 
 # convert column into factors
 data$subID <- as.factor(data$subID)
-data$maskLabel <- as.factor(data$maskLabel)
+data$maskArea <- as.factor(data$maskArea)
 data$maskHemi <- as.factor(data$maskHemi)
 data$image <- as.factor(data$image)
 data$decodingConditions <- as.factor(data$decodingConditions)
@@ -63,7 +73,7 @@ data$group <- as.factor(data$group)
 colnames(data) <- gsub("(^)([a-z])", "\\U\\2", colnames(data), perl = TRUE)
 
 # Rename specific columns
-colnames(data)[colnames(data) == "MaskLabel"] <- "Mask"
+colnames(data)[colnames(data) == "MaskArea"] <- "Mask"
 colnames(data)[colnames(data) == "MaskHemi"] <- "Hemi"
 
 # Check the updated column names
@@ -80,9 +90,6 @@ print(are_factors)
 unique_images <- unique(data$Image)
 print(unique_images)
 
-# Step 2: Filter the data with tmaps only
-data <- data %>%
-  filter(`Image` == 't_maps')
 
 # check mask column unique values
 unique_masks <- unique(data$Mask)
@@ -92,10 +99,9 @@ sort(unique(data$DecodingConditions))
 sort(unique(data$Exp))
 
 
-# try to relabel Decodingconditions to be coherent with other plots (CoG Distance...)
+# try to relabel Decodingconditions to be coherent with
+# other plots (CoG Distance...)
 # Replace 'Forehead' with 'Fore' and 'Tongue' with 'T' in the Pair column
-#data$DecodingConditions <- gsub("Forehead", "Fore", data$DecodingConditions)
-#data$DecodingConditions <- gsub("Tongue", "T", data$DecodingConditions)
 data$DecodingConditions <- gsub("Feet", "Foot", data$DecodingConditions)
 data$DecodingConditions <- gsub("_vs_", "-", data$DecodingConditions)
 data$DecodingConditions <- gsub("Hand-Foot", "Foot-Hand", data$DecodingConditions)
@@ -121,12 +127,17 @@ data$Accuracy <- data$Accuracy * 100
 datam <- data %>% filter(Exp == "moto")
 datas <- data %>% filter(Exp == "somato")
 
+
+# 'somato' 'moto'
+exp <- "somato"
 data_plot <- datas
-exp <- 'somato' # or 'somato' 'moto'
-mask_level <- '123ab' # or '123ab' '4'
+
+# sensorimotor_union_binary, area3a_3b_2_1_binary, area3a_3b_binary
+# area4_binary,
+mask_area <- "area4"
 
 filtered_data <- data_plot %>%
-  filter(Mask == mask_level)
+  filter(Mask == mask_area)
 
 # Calculate summary statistics for the filtered data
 df <- summarySE(data = filtered_data,
@@ -138,10 +149,11 @@ df <- summarySE(data = filtered_data,
 
 
 
-# for poster SAW 2025 - reordering the pairwise conditions
-# omit the for loop and plot only 4 (2exp x 2 masks)
-# with averaged values
+# the pairwise conditions reordered
+# plot only 4 (2exp x 2 masks) with averaged values
 library(showtext)
+# Add Avenir font (system font on macOS)
+font_add("Avenir", regular = "/System/Library/Fonts/Avenir.ttc")
 showtext_auto()
 
 custom_pair_order <- c(
@@ -149,10 +161,15 @@ custom_pair_order <- c(
   "Hand-Lips", "Hand-Tongue", "Foot-Hand", "Foot-Forehead",
   "Foot-Lips", "Foot-Tongue"
 )
-df$pair_order_dist <- match(df$DecodingConditions, custom_pair_order)
+
+# Set factor levels according to custom order
 df$DecodingConditions <- factor(
                                 df$DecodingConditions,
                                 levels = custom_pair_order)
+
+# Verify the order is correct
+print("Factor levels (this is the x-axis order):")
+print(levels(df$DecodingConditions))
 
 # Define position dodge
 pos_dodge <- position_dodge(width = 0.8)
@@ -162,9 +179,12 @@ group_colors <- c("ctrl" = "#7b7979", "mbs" = "#63c599")
 # Make sure Group is a factor with correct levels
 df$Group <- factor(df$Group, levels = c("ctrl", "mbs"))
 
-# Dot plot with error bars
-p <- ggplot(df, aes(x = DecodingConditions, y = Accuracy, color = Group)) +
-  geom_point(position = pos_dodge, size = 14) +
+# define min value of the y axis label
+minVal = 65 # 65 for motoExp, sensorimotorunion mask
+
+# VERSION 1: Plot without x-axis labels (for poster/publication)
+p1 <- ggplot(df, aes(x = DecodingConditions, y = Accuracy, color = Group)) +
+  geom_point(position = pos_dodge, size = 8) +
   geom_errorbar(
     aes(ymin = Accuracy - se, ymax = Accuracy + se, color = Group),
     width = 0.2, position = pos_dodge, size = 1
@@ -175,7 +195,7 @@ p <- ggplot(df, aes(x = DecodingConditions, y = Accuracy, color = Group)) +
     y = "Accuracy",
     color = "Group"
   ) +
-  ylim(75, 101) +
+  ylim(minVal, 101) +
   theme_minimal() +
   theme(
     text = element_text(family = "Avenir", color = "black"),
@@ -193,19 +213,61 @@ p <- ggplot(df, aes(x = DecodingConditions, y = Accuracy, color = Group)) +
   ) +
   scale_color_manual(values = group_colors)
 
-print(p)
+# VERSION 2: Plot with x-axis labels and title (for checking)
+plot_title <- paste("Exp", exp, "-", mask_area, "mask")
+
+p2 <- ggplot(df, aes(x = DecodingConditions, y = Accuracy, color = Group)) +
+  geom_point(position = pos_dodge, size = 8) +
+  geom_errorbar(
+    aes(ymin = Accuracy - se, ymax = Accuracy + se, color = Group),
+    width = 0.2, position = pos_dodge, size = 1
+  ) +
+  facet_wrap(~ Hemi) +
+  labs(
+    title = plot_title,
+    x = "Decoding Body Part Pairs",
+    y = "Accuracy",
+    color = "Group"
+  ) +
+  ylim(minVal, 101) +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "Avenir", color = "black"),
+    plot.title = element_text(size = 30, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 26, hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 20),
+    axis.text.y = element_text(size = 26),
+    axis.title.y = element_text(size = 28, face = "bold"),
+    axis.title.x = element_text(size = 28, face = "bold"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    legend.position = "top",
+    legend.text = element_text(size = 24),
+    legend.title = element_text(size = 24),
+    panel.spacing = unit(6, "lines")
+  ) +
+  scale_color_manual(values = group_colors)
+
+print(p1)
+print(p2)
 
 # Save the plot if desired
 filename <- paste(path_results,
                   paste0("Ordered_PairwiseDecodingPlot_Mask_",
-                         mask_level, "_", exp, "Exp_averaged.pdf",
+                         mask_area, "_", exp, "Exp_averaged.pdf",
                          sep = ""), sep = "")
-ggsave(filename, plot = p, width = 24, height = 5, units = "in", dpi = 300)
+ggsave(filename, plot = p1, width = 24, height = 5, units = "in", dpi = 300)
+
+filename <- paste(path_results,
+                  paste0("Ordered_PairwiseDecodingPlot_Mask_",
+                         mask_area, "_", exp, "Exp_averaged_labels.pdf",
+                         sep = ""), sep = "")
+ggsave(filename, plot = p2, width = 24, height = 7, units = "in", dpi = 300)
 
 
-
-
-##### Stats on geodesic distance
+##### Stats on decoding accuracy
+# ANOVA and permutation ANOVA
+# install.packages("broom")
 library(broom)
 
 
@@ -239,7 +301,7 @@ perm_model <- aovperm(
 results <- summary(perm_model)
 print(results)
 filename <- paste(
-  path_results, "permutationAnovaTable_", task, "_Accuracy.csv", sep = ""
+  path_results, "permutationAnovaTable_", exp, "_", mask_area, "_Accuracy.csv", sep = ""
 )
 write.csv(results, filename)
 
