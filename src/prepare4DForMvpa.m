@@ -16,9 +16,7 @@ bidspm();
 % add mini-helper functions
 addpath(genpath(fullfile(pwd, 'subfun')));
 
-
-% not sure if we need getOptionMoebiusMvpa here
-% opt = getOptionMoebiusMvpa();
+%add task name
 opt.taskName = {'mototopy'}; % mototopy somatotopy
 
 %% Set options
