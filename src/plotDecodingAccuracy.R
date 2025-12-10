@@ -5,7 +5,7 @@ library(dplyr)
 library(Rmisc)
 
 
-path_results <- paste("/Volumes/extreme/Cerens_files/fMRI",
+mainfolder <- paste("/Volumes/extreme/Cerens_files/fMRI",
                       "moebius_topo_analyses/outputs",
                       "derivatives/cosmoMvpa/roi/", sep = "/")
 
@@ -13,13 +13,17 @@ path_results <- paste("/Volumes/extreme/Cerens_files/fMRI",
 # plot binary class decoding (pairwise)
 #####
 
+# sub folder - changes for every .csv file
+subfolder <- "overlappingMasks_250vx"
+
+path_results <- paste0(mainfolder, subfolder, sep = "/")
 # first read the pairwise somatotopy
 datas <- read.csv(paste0(path_results,
-                         paste0("somatotopyPairwiseDecoding_glassierexclusive_",
-                                "s2_voxNb250_202511111530.csv")))
+                         paste0("somatotopyPairwiseDecoding_glassier_",
+                                "s2_voxNb250_202511061646.csv")))
 datam <- read.csv(paste0(path_results,
-                         paste0("mototopyPairwiseDecoding_glassierexclusive_",
-                                "s2_voxNb250_202511071625.csv")))
+                         paste0("mototopyPairwiseDecoding_glassier_",
+                                "s2_voxNb250_202511071357.csv")))
 # exclusive masks
 # somatotopyPairwiseDecoding_glassierexclusive_s2_voxNb250_202511111530
 # mototopyPairwiseDecoding_glassierexclusive_s2_voxNb250_202511071625
@@ -27,6 +31,18 @@ datam <- read.csv(paste0(path_results,
 # non exclusive masks (overlapping voxels between sensorimotor masks)
 # somatotopyPairwiseDecoding_glassier_s2_voxNb250_202511061646
 # mototopyPairwiseDecoding_glassier_s2_voxNb250_202511071357
+
+# 250voxels
+# "somatotopyPairwiseDecoding_glassierexclusive_",
+# "s2_voxNb250_202511111530.csv"
+# "mototopyPairwiseDecoding_glassierexclusive_",
+# "s2_voxNb250_202511071625.csv"
+
+# 150 voxels
+# "somatotopyPairwiseDecoding_glassierexclusive_",
+# "s2_voxNb150_202511211605.csv"
+# "mototopyPairwiseDecoding_glassierexclusive_",
+# "s2_voxNb150_202511211643.csv"
 
 datam$Exp <- "moto"
 datas$Exp <- "somato"
@@ -134,7 +150,7 @@ data_plot <- datas
 
 # sensorimotor_union_binary, area3a_3b_2_1_binary, area3a_3b_binary
 # area4_binary,
-mask_area <- "area4"
+mask_area <- "sensorimotor_union_binary"
 
 filtered_data <- data_plot %>%
   filter(Mask == mask_area)
@@ -306,87 +322,130 @@ filename <- paste(
 write.csv(results, filename)
 
 
+# update on 27/11/2025
+perm_model2 <- aovperm(
+  Accuracy ~ Group * DecodingConditions * Hemi,
+  data = filtered_data,
+  np = 5000,
+  within = ~ DecodingConditions * Hemi,
+  subject = "SubID"
+)
+
+results <- summary(perm_model2)
+print(results)
 
 
+#######
+# post-hoc
+# =============================
+# Load libraries
+# =============================
+library(dplyr)
+library(purrr)
+library(effectsize)  # for cohens_d
+library(coin)        # for permutation tests
+library(permute)     # required by aovperm
+library(afex)        # for aovperm
 
+# =============================
+# 0. Prepare data
+# =============================
+# Make sure subset_data exists with columns: SubID, Group, DecodingConditions, Hemi, Accuracy
+subset_data <- subset_data %>%
+  mutate(
+    Group             = factor(Group),
+    DecodingConditions = factor(DecodingConditions),
+    Hemi              = factor(Hemi),
+    SubID             = factor(SubID)
+  )
 
+# =============================
+# 1. Summary stats per Group × DecodingCondition × Hemi
+# =============================
+summary_table <- subset_data %>%
+  dplyr::group_by(Group, DecodingConditions, Hemi) %>%
+  dplyr::summarise(
+    mean_accuracy = mean(Accuracy),
+    sd_accuracy   = sd(Accuracy),
+    n             = length(Accuracy),
+    .groups       = "drop"
+  )
 
+# =============================
+# 2. Permutation ANOVA (overall)
+# =============================
+perm_model <- aovperm(
+  Accuracy ~ Group * DecodingConditions * Hemi +
+    Error(SubID / (DecodingConditions * Hemi)),
+  data = subset_data,
+  np = 5000
+)
+anova_summary <- summary(perm_model)
+print(anova_summary)
 
-# #####
-# chosenCondition =  "Pairwise"
-# # Get the unique values of 'Mask'
-# unique_masks <- unique(data$Mask)
-# 
-# # Split the masks into two groups
-# masks_somato <- unique_masks[1:5]  # First 5 masks
-# masks_moto <- unique_masks[6:11] # Remaining 6 masks
-# 
-# # Filter data for each group
-# data_somato <- data %>% filter(Mask %in% masks_somato)
-# data_moto <- data%>% filter(Mask %in% masks_moto)
-# 
-# 
-# plot_facet <- function(data, title) {
-#   
-#   # Calculate the summary statistics (mean and standard error)
-#   df <- summarySE(data = data, 
-#                   measurevar = 'Accuracy', 
-#                   groupvars = c('Mask', 'Hemi', 'Group', 'Exp'), 
-#                   na.rm = TRUE)
-#   
-#   # Base ggplot with jitter, error bars, and custom colors
-#   p <- ggplot(df, aes(x = interaction(Group, Exp), y = Accuracy, color = interaction(Group, Exp))) +
-#     geom_jitter(data = data, 
-#                 aes(x = interaction(Group, Exp), y = Accuracy), 
-#                 width = 0.2, alpha = 0.5, size = 1) +
-#     geom_point(position = position_dodge(width = 0.5), size = 3) +
-#     geom_errorbar(aes(ymin = Accuracy - se, ymax = Accuracy + se), 
-#                   width = 0.2, position = position_dodge(width = 0.5)) +
-#     facet_grid(Mask ~ Hemi) +
-#     scale_color_manual(values = c(
-#       "ctrl.moto" = "#FF6666", "ctrl.somato" = "#FFCCCC",
-#       "mbs.moto" = "#6666FF", "mbs.somato" = "#CCCCFF"
-#     )) +
-#     labs(title = title, x = "Group & Exp", y = "Accuracy") +
-#     theme_minimal() +
-#     theme(
-#       strip.text = element_text(size = 10, face = "bold"),
-#       strip.background = element_rect(fill = "lightgray", color = "black"),
-#       panel.border = element_rect(color = "black", fill = NA, size = 0.5),
-#       panel.spacing = unit(1, "lines"),  # Increase spacing between panels
-#       # axis.text.x = element_text(angle = 45, hjust = 1),
-#       panel.grid.major = element_line(color = "gray90"),  # Optional: Add grid lines for better readability
-#       panel.grid.minor = element_blank()
-#     )
-#   
-#   return(p)
-# }
-# 
-# 
-# # Generate the first plot for the first 5 somato masks
-# plot_somato <- plot_facet(data_somato, paste(chosenCondition,"Decoding in Sensory Cx Masks"))
-# filename <- paste(pathResults, paste(chosenCondition,"_somatoMasks.png",sep = ''), sep = '')
-# ggsave(filename, plot = plot_somato, width = 10, height = 10, units = "in", dpi = 300)
-# 
-# # Generate the second plot for the remaining 5 masks
-# plot_moto <- plot_facet(data_moto, paste(chosenCondition,"Decoding in Motor Cx Masks"))
-# filename <- paste(pathResults, paste(chosenCondition,"_motoMasks.png",sep = ''), sep = '')
-# ggsave(filename, plot = plot_moto, width = 10, height = 10, units = "in", dpi = 300)
-# 
-# # Display the plots
-# print(plot_somato)
-# print(plot_moto)
+# =============================
+# Cohen's d per DecodingCondition × Hemi
+# =============================
 
+cohens_d_table <- subset_data %>%
+  group_by(DecodingConditions, Hemi) %>%
+  group_split() %>%
+  map_dfr(function(df) {
+    
+    # Ensure both groups are present with at least 2 observations
+    group_counts <- table(df$Group)
+    if(length(group_counts) < 2 || any(group_counts < 2)) {
+      d_val <- NA_real_
+    } else {
+      df$Group <- factor(df$Group, levels = c("ctrl", "mbs"))
+      cd <- tryCatch(cohens_d(Accuracy ~ Group, data = df),
+                     error = function(e) return(NULL))
+      if(is.null(cd)) {
+        d_val <- NA_real_
+      } else {
+        # Pull first numeric column safely
+        d_val <- cd %>% select(where(is.numeric)) %>% pull(1)
+      }
+    }
+    
+    tibble(
+      DecodingConditions = as.character(unique(df$DecodingConditions)),
+      Hemi              = as.character(unique(df$Hemi)),
+      cohens_d          = d_val
+    )
+  })
 
+# =============================
+# 4. Permutation independence test per DecodingCondition × Hemi (optional)
+# =============================
+perm_test_table <- subset_data %>%
+  group_by(DecodingConditions, Hemi) %>%
+  group_split() %>%
+  map_dfr(function(df) {
+    # Check if both groups exist and have >=2 observations
+    group_counts <- table(df$Group)
+    if(length(group_counts) < 2 || any(group_counts < 2)) {
+      p_val <- NA_real_
+    } else {
+      df$Group <- factor(df$Group, levels = c("ctrl", "mbs"))
+      perm_res <- tryCatch(
+        independence_test(Accuracy ~ Group, data = df,
+                          distribution = approximate(nresample = 5000)),
+        error = function(e) return(NULL)
+      )
+      p_val <- if(is.null(perm_res)) NA_real_ else as.numeric(pvalue(perm_res))
+    }
+    
+    tibble(
+      DecodingConditions = as.character(unique(df$DecodingConditions)),
+      Hemi              = as.character(unique(df$Hemi)),
+      p_group           = p_val
+    )
+  })
 
-
-
-
-
-
-
-
-
-
-
-
+# =============================
+# Final tables
+# =============================
+summary_table       # mean ± sd per Group × DecodingCondition × Hemi
+cohens_d_table      # Cohen's d per DecodingCondition × Hemi
+perm_test_table     # Permutation p-values per DecodingCondition × Hemi

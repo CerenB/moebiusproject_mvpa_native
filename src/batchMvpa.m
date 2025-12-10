@@ -44,7 +44,7 @@ clc;
 
   % load your options
   opt.taskName = {'somatotopy'}; % mototopy somatotopy
-  opt.space = {'T1w'};
+  opt.space = {'MNI152NLin2009cAsym'};
   verbosity = 3;
   opt.bidsFilterFile.bold = struct('modality', 'func', 'suffix', 'bold');
   opt.fwhm.func = 2;
@@ -74,7 +74,7 @@ clc;
   
   %% mvpa options
   % take the most responsive xx nb of voxels
-  opt.mvpa.ratioToKeep = 250; % 100 150 250 300(364 min for combo)
+  opt.mvpa.ratioToKeep = 150; % 100 150 250 300(364 min for combo)
 
   % set which type of ffx results you want to use
   opt.mvpa.map4D = {'tmap'}; % 'beta', 
@@ -142,3 +142,11 @@ clc;
   opt.mvpa.pairs = 1; 
   accuracy = calculatePairwiseMvpa(opt, roiSource);
   
+
+  % group decoding
+  opt.spaceFolder = 'MNI152NLin2009cAsym';
+  opt.groupMvpa.condition = 'hand';
+  opt.groupMvpa.imageType = 'tmap';
+  opt.groupMvpa.maskLabel = 'glassier';
+
+  calculateGroupDecodingPerCondition(opt);
