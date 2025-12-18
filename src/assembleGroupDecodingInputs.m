@@ -1,5 +1,5 @@
-function prepareGroupDecoding(opt)
-% Prepare 3D/4D subject images for GROUP-LEVEL MVPA decoding (ctrl vs mbs)
+function assembleGroupDecodingInputs(opt)
+% Assemble 3D/4D subject images for group-level MVPA decoding (ctrl vs mbs)
 %
 % This script reorganizes per-subject statistical maps for group classification.
 % Three aggregation strategies control how volumes are combined:
@@ -25,7 +25,7 @@ function prepareGroupDecoding(opt)
 %   - Use case: Full dataset without aggregation (large)
 %
 % Usage:
-%   prepareGroupDecoding(opt)
+%   assembleGroupDecodingInputs(opt)
 %
 % Required opt fields (with defaults if missing):
 %   opt.taskName              = {'somatotopy'} | {'mototopy'}
