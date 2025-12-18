@@ -26,7 +26,7 @@ maskOutputDir = fullfile(maskInputDir, 'resliced');
 
 % Reference stats directory (for 4D image)
 refStatsDir = fullfile(opt.statsBaseDir, subLabel, ...
-                       sprintf('task-%s_space-%s_FWHM-2', opt.taskName, opt.space));
+                       sprintf('task-%s_space-%s_FWHM-2', opt.taskName{1}, opt.space{1}));
 
 % Check input directory exists
 if ~exist(maskInputDir, 'dir')
@@ -47,7 +47,7 @@ end
 
 %% Load reference 4D image and check dimensions
 refImageName = sprintf('%s_task-%s_space-%s_desc-4D_tmap.nii', ...
-                       subLabel, opt.taskName, opt.space);
+                       subLabel, opt.taskName{1}, opt.space{1});
 refImage = fullfile(refStatsDir, refImageName);
 
 if ~exist(refImage, 'file')
