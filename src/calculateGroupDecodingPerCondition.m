@@ -23,7 +23,7 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
 %   opt.taskName              = {'somatotopy'}
 %   opt.groupMvpa.condition   = 'hand'  % single condition name
 %   opt.groupMvpa.imageType   = 'tmap' | 'beta'
-%   opt.spaceFolder           = 'MNI152NLin2009cAsym'
+%   opt.space           = 'MNI152NLin2009cAsym'
 %   opt.dir.stats             = path to bidspm-stats directory
 %   opt.pathOutput            = output directory path
 %
@@ -43,6 +43,11 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
   fprintf('Task: %s | Condition: %s | Image: %s\n', ...
     opt.taskName{1}, opt.groupMvpa.condition, opt.groupMvpa.imageType);
   fprintf('========================================\n');
+  maskBase = '';
+  if isfield(opt,'maskPath') && ~isempty(opt.maskPath)
+    maskBase = opt.maskPath;
+  end
+  fprintf('ROI source: %s | Mask base: %s\n', roiSource, maskBase);
 
   %% Set output folder/name
   funcFWHM = opt.fwhm.func;
@@ -55,7 +60,7 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
   condStr = strrep(opt.groupMvpa.condition, ' ', '');
   baseName = sprintf('%sGroupDecoding_%s_%s_%s_s%s_%s', ...
                      taskNameStr, condStr, opt.groupMvpa.imageType, ...
-                     opt.spaceFolder, num2str(funcFWHM), ts);
+                     opt.space{1}, num2str(funcFWHM), ts);
 
   savefileMat = fullfile(opt.pathOutput, [baseName, '.mat']);
   savefileCsv = fullfile(opt.pathOutput, [baseName, '.csv']);
@@ -72,8 +77,9 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
   fprintf('Total subjects: %d (ctrl=%d, mbs=%d)\n', ...
           nSubjects, sum(groupLabels==1), sum(groupLabels==2));
 
-  %% Get mask
-  [maskPath, opt] = getMaskPath(opt);
+  %% Mask handling
+  % For group decoding, masks may be subject-specific. We'll resolve per-subject
+  % masks inside the dataset loading step rather than using a single mask here.
 
   %% Initialize results structure
   accu = struct( ...
@@ -92,7 +98,7 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
 
   %% Load all subjects' data
   fprintf('\nLoading per-subject 4D images...\n');
-  [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubjects, groupLabels, maskPath);
+  [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubjects, groupLabels);
   nValid = numel(validSubjects);
 
   if nValid < 4
@@ -153,7 +159,7 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
     end
     
     accu(count).imageType = opt.groupMvpa.imageType;
-    accu(count).space = opt.spaceFolder;
+    accu(count).space = opt.space{1};
     accu(count).ffxSmooth = funcFWHM;
     count = count + 1;
   end
@@ -200,34 +206,7 @@ function [allSubjects, groupLabels] = loadSubjectList(opt)
   groupLabels = double(tSubjects.group); % 1=ctrl, 2=mbs
 end
 
-function [maskPath, opt] = getMaskPath(opt)
-  % Get mask path using chooseMask helper
-  fprintf('Getting mask from roiSource: %s\n', opt.roiSource);
-  
-  % Call chooseMask with proper signature: (opt, roiSource, subID)
-  % For group-level, we don't need subID, so pass empty
-  opt = chooseMask(opt, opt.roiSource, []);
-  
-  % Print out the mask names (like in calculatePairwiseMvpa.m)
-  if isfield(opt, 'maskLabel') && iscell(opt.maskLabel)
-    for iMask = 1:length(opt.maskLabel)
-      fprintf('  Mask: %s\n', opt.maskLabel{iMask}.full);
-    end
-  end
-  
-  % Use the first mask for group-level decoding
-  if isfield(opt, 'maskName') && iscell(opt.maskName) && ~isempty(opt.maskName{1})
-    maskPath = opt.maskName{1};
-  else
-    maskPath = opt.maskPath;
-  end
-  
-  if isempty(maskPath) || ~exist(maskPath, 'file')
-    error('Mask not found: %s', maskPath);
-  end
-end
-
-function [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubjects, groupLabels, maskPath)
+function [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubjects, groupLabels)
   % Load 4D images for all subjects
   nSubjects = numel(allSubjects);
   datasets = cell(nSubjects, 1);
@@ -235,13 +214,13 @@ function [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubj
   
   condStr = strrep(opt.groupMvpa.condition, ' ', '');
   imgPattern = sprintf('sub-%%s_task-%s_space-%s_desc-%s4D_%s.nii', ...
-                       opt.taskName{1}, opt.spaceFolder, condStr, opt.groupMvpa.imageType);
+                       opt.taskName{1}, opt.space{1}, condStr, opt.groupMvpa.imageType);
   
   for iSub = 1:nSubjects
     subID = allSubjects{iSub};
     subLabel = ['sub-' subID];
     ffxDir = fullfile(opt.dir.stats, subLabel, ...
-              ['task-', opt.taskName{1}, '_space-', opt.spaceFolder, '_FWHM-2']);
+              ['task-', opt.taskName{1}, '_space-', opt.space{1}, '_FWHM-2']);
     imgPath = fullfile(ffxDir, sprintf(imgPattern, subID));
     
     if ~exist(imgPath, 'file')
@@ -250,8 +229,26 @@ function [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubj
       continue;
     end
     
+    % Resolve subject-specific mask; require presence
+    maskForSub = '';
     try
-      ds = cosmo_fmri_dataset(imgPath, 'mask', maskPath);
+      optMask = chooseMask(opt, opt.roiSource, subID);
+      if isfield(optMask, 'maskName') && ~isempty(optMask.maskName)
+        maskForSub = optMask.maskName{1};
+      end
+    catch ME
+      % keep maskForSub empty; handled below
+    end
+    if isempty(maskForSub) || exist(maskForSub,'file')~=2
+      warning('Missing mask for %s; skipping subject. Expected under %s/%s/%s', ...
+              subLabel, opt.maskPath, lower(opt.roiSource), subLabel);
+      validIdx(iSub) = false;
+      continue;
+    end
+    fprintf('  Using mask for %s: %s\n', subLabel, maskForSub);
+
+    try
+      ds = cosmo_fmri_dataset(imgPath, 'mask', maskForSub);
       
       % Remove zero voxels
       zeroMask = all(ds.samples == 0, 1);
@@ -260,11 +257,11 @@ function [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubj
       % Remove useless data
       ds = cosmo_remove_useless_data(ds);
       
-      datasets{iSub} = ds;
-      fprintf('  [%d/%d] Loaded %s: %d volumes, %d features\n', ...
+            datasets{iSub} = ds;
+            fprintf('  [%d/%d] Loaded %s: %d volumes, %d features\n', ...
               iSub, nSubjects, subLabel, size(ds.samples,1), size(ds.samples,2));
     catch ME
-      warning('Failed to load %s: %s', subLabel, ME.message);
+            warning('Failed to load %s with mask: %s', subLabel, ME.message);
       validIdx(iSub) = false;
     end
   end

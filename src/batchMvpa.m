@@ -39,11 +39,11 @@ clc;
   % mask
   opt.maskPath = fullfile('/Volumes/extreme/Cerens_files/fMRI', ...
                            'GlasserAtlas/Glasser_ROIs_sensorimotor/', ...
-                           'volumetric_ROIs');
+                           'volumetric_MNI2009cAsym');
   
 
   % load your options
-  opt.taskName = {'somatotopy'}; % mototopy somatotopy
+  opt.taskName = {'mototopy'}; % mototopy somatotopy
   opt.space = {'MNI152NLin2009cAsym'};
   verbosity = 3;
   opt.bidsFilterFile.bold = struct('modality', 'func', 'suffix', 'bold');
@@ -57,7 +57,7 @@ clc;
   %  sub-ctrl014 only mototopy exp
   opt.subjects = {'ctrl001', 'ctrl002','ctrl003','ctrl004', 'ctrl005', ...
                   'ctrl007', 'ctrl008', 'ctrl009', 'ctrl010', 'ctrl011', ...
-                  'ctrl012', 'ctrl013', 'ctrl015', 'ctrl016', ...
+                  'ctrl012', 'ctrl013', 'ctrl014', 'ctrl015', 'ctrl016', ...
                   'ctrl017', 'mbs001', 'mbs002' , 'mbs003', 'mbs004', ...
                   'mbs005', 'mbs006', 'mbs007'}; 
   %opt.subjects = {'ctrl014'};            
@@ -76,8 +76,9 @@ clc;
   % take the most responsive xx nb of voxels
   opt.mvpa.ratioToKeep = 150; % 100 150 250 300(364 min for combo)
 
-  % set which type of ffx results you want to use
-  opt.mvpa.map4D = {'tmap'}; % 'beta', 
+  % Group-decoding image type
+  % calculateGroupDecodingPerCondition uses this single value
+  opt.groupMvpa.imageType = 'tmap'; % | 'beta'   % uses desc-4D_<imageType>.nii
 
   % design info
   opt.mvpa.nbRun = 6; %6 for somato, 3 for mototopy fir pilots
@@ -143,35 +144,37 @@ clc;
   accuracy = calculatePairwiseMvpa(opt, roiSource);
   
   
-  
 % prep for the group decoding
 % 1. MASKS (input 1)
 % first create the masks with bash script in the repo surface_geo_analysis
 % they will be in MNI space
 % then reslice them
+% Set internal options for reslicing
+opt.threshold = 0.0;  % Initial binary threshold for original masks
+opt.reslice.do = true;
+opt.save.roi = true;
 interp = 'bspline';  % 'nearest', 'linear', or 'bspline' (must match warp step)
 resliceAndBinarizeMNIMasks(opt, interp);
+
+%%%%%%% REDO THE RESLICING %%%%%%%%% THEN IT SHOULD WORK THE REST
 
 % 2. 4D MAPS (input 2)
 % prepare the conditions/4D maps for group decoding
 % Required opt fields (with defaults if missing):
-  opt.taskName              = {'mototopy'};
-  opt.groupMvpa.strategy    = 'average'; % | 'specific' | 'concatenate'
-  opt.groupMvpa.imageType   = 'tmap'; % | 'beta'   % uses desc-4D_<imageType>.nii
+  opt.groupMvpa.strategy    = 'specific'; % 'average' | 'specific' | 'concatenate'
   opt.groupMvpa.conditions  = {'hand'};        % pattern match (case-insensitive) for 'specific'
   opt.groupMvpa.sampleGranularity = 'per-run'; % | 'per-condition-avg'
   opt.groupMvpa.writeNifti  = true;       % write per-subject NIfTIs
-  opt.spaceFolder           = 'MNI152NLin2009cAsym'; %| 'T1w' (folder name)
 assembleGroupDecodingInputs(opt)
 
 
  % 3. perform group decoding
-  opt.spaceFolder = 'MNI152NLin2009cAsym';
   opt.groupMvpa.condition = 'hand';
-  opt.groupMvpa.imageType = 'tmap';
-  roiSource = 'glassier';
+  % Use MNI masks produced via warp script; select interpolation subfolder
+  roiSource = 'bspline'; % or 'nearest'
   calculateGroupDecodingPerCondition(opt, roiSource);
   
-  % note 18/12/2025 th masks are done in mototopy - and no task related
-  % folders are created in the mask folder. technically MNI based masks
-  % should be ok but something to consider.
+  
+  
+  
+  

@@ -34,7 +34,7 @@ function assembleGroupDecodingInputs(opt)
 %   opt.groupMvpa.conditions  = {'hand'}         % pattern match (case-insensitive) for 'specific'
 %   opt.groupMvpa.sampleGranularity = 'per-run' | 'per-condition-avg'
 %   opt.groupMvpa.writeNifti  = true/false       % write per-subject NIfTIs
-%   opt.spaceFolder           = 'MNI152NLin2009cAsym' | 'T1w' (folder name)
+%   opt.space          = 'MNI152NLin2009cAsym' | 'T1w' (folder name)
 %
 % Output (saved under outputs/derivatives/cosmoMvpa/group):
 %   - TSV file listing subject id and group (1=ctrl, 2=mbs)
@@ -60,7 +60,7 @@ function assembleGroupDecodingInputs(opt)
   fprintf('PREPARING GROUP-LEVEL MVPA DECODING\n');
     fprintf('Task: %s | Strategy: %s | Image: %s | Space: %s\n', ...
       opt.taskName{1}, opt.groupMvpa.strategy, ...
-      opt.groupMvpa.imageType, opt.spaceFolder);
+      opt.groupMvpa.imageType, opt.space{1});
   fprintf('========================================\n');
 
   % Participants by group (match project lists)
@@ -84,21 +84,30 @@ function assembleGroupDecodingInputs(opt)
   if isempty(firstTsv)
     error('No labelfold.tsv found in any subject FFX directory.');
   end
+  fprintf('Using labelfold example: %s\n', firstTsv);
   t = readtable(firstTsv, 'FileType','text', 'Delimiter','\t');
   if ismember('labels', t.Properties.VariableNames)
     allConditions = string(t.labels);
   else
     allConditions = string(t{:, end});
   end
-  fprintf('Example subject %s has %d conditions.\n', firstSub, numel(allConditions));
+  allConditions = strtrim(allConditions);
+  fprintf('Example subject %s has %d conditions. Labels: %s\n', firstSub, ...
+          numel(allConditions), strjoin(unique(allConditions), ', '));
 
   strategy = opt.groupMvpa.strategy;
   gran = opt.groupMvpa.sampleGranularity;
   if strcmp(strategy, 'specific')
-    selectedConditions = string(opt.groupMvpa.conditions);
+    selectedConditions = strtrim(string(opt.groupMvpa.conditions));
   end
 
-  groupData = cell(numel(allSubjects), 1);
+  if strcmp(strategy, 'concatenate')
+    if ~isfield(opt.groupMvpa, 'writeNifti') || ~opt.groupMvpa.writeNifti
+      fprintf('Concatenate strategy: using existing 4D maps as-is; no new NIfTI outputs will be written.\n');
+    else
+      fprintf('Concatenate strategy: using existing 4D maps and writing subject copies (opt.groupMvpa.writeNifti=true).\n');
+    end
+  end
   validSubjects = {};
   validLabels = [];
   validMetadata = cell(numel(allSubjects), 1); % store labels & folds per subject
@@ -108,27 +117,27 @@ function assembleGroupDecodingInputs(opt)
     subLabel = ['sub-' subID];
     gLab = groupLabels(iSub);
     ffxDir = fullfile(statsBaseDir, subLabel, ...
-              ['task-', opt.taskName{1}, '_space-', opt.spaceFolder, '_FWHM-2']);
+              ['task-', opt.taskName{1}, '_space-', opt.space{1}, '_FWHM-2']);
 
     fprintf('\nProcessing %s (group %d) [%d/%d]\n', subLabel, gLab, iSub, numel(allSubjects));
     if ~exist(ffxDir,'dir')
       warning('Stats dir missing, skip: %s', ffxDir); continue; end
 
-    imgName = sprintf('%s_task-%s_space-%s_desc-4D_%s.nii', ...
-              subLabel, opt.taskName{1}, opt.spaceFolder, opt.groupMvpa.imageType);
-    imgPath = fullfile(ffxDir, imgName);
-    if ~exist(imgPath,'file')
-      warning('4D image missing, skip: %s', imgPath); continue; end
+    imgPath = resolve_image_path(ffxDir, subLabel, opt, strategy);
+    if isempty(imgPath)
+      warning('4D image missing, skip dir: %s', ffxDir); continue; end
 
-    tsvPath = find_labelfold_tsv(ffxDir);
+    tsvPath = find_labelfold_tsv(ffxDir, subLabel, opt);
     if isempty(tsvPath)
       warning('labelfold.tsv missing, skip: %s', subLabel); continue; end
+    fprintf('  labelfold.tsv: %s\n', tsvPath);
     tt = readtable(tsvPath, 'FileType','text', 'Delimiter','\t');
     if ismember('labels', tt.Properties.VariableNames)
       labelsThis = string(tt.labels);
     else
       labelsThis = string(tt{:, end});
     end
+    labelsThis = strtrim(labelsThis);
     if ismember('folds', tt.Properties.VariableNames)
       foldsThis = double(tt.folds);
     else
@@ -139,6 +148,9 @@ function assembleGroupDecodingInputs(opt)
     V = spm_vol(imgPath);
     Y = spm_read_vols(V);
     nvol = size(Y,4);
+
+    % Debug info on labels and volumes
+    fprintf('  Volumes: %d | Labels: %d | Unique labels: %s\n', nvol, numel(labelsThis), strjoin(unique(labelsThis), ', '));
 
     if nvol ~= numel(labelsThis)
       warning('Volumes (%d) != labels (%d) for %s. Proceeding with min.', nvol, numel(labelsThis), subLabel);
@@ -163,7 +175,11 @@ function assembleGroupDecodingInputs(opt)
           condMask = condMask | contains(labelsThis, c, 'IgnoreCase', true);
         end
         if ~any(condMask)
-          warning('No selected conditions found for %s. Skipping.', subLabel); continue; end
+          warning('No selected conditions found for %s. Available labels: %s', ...
+                  subLabel, strjoin(unique(labelsThis), ', '));
+          continue;
+        end
+        fprintf('  Selected labels: %s\n', strjoin(unique(labelsThis(condMask)), ', '));
         switch gran
           case 'per-run'
             runs = unique(foldsThis(:))';
@@ -228,6 +244,10 @@ function assembleGroupDecodingInputs(opt)
           sum(validLabels==1), sum(validLabels==2));
   fprintf('========================================\n');
 
+  if isempty(validSubjects)
+    error('No subjects prepared. Check that selected conditions match available labels and that 4D maps/labelfold.tsv exist.');
+  end
+
   % Save subject list with group labels
   saveFilename = sprintf('groupDecoding_%s_%s_%s.tsv', ...
                          opt.taskName{1}, strategy, datestr(now, 'yyyymmddHHMMSS'));
@@ -238,15 +258,23 @@ function assembleGroupDecodingInputs(opt)
   fprintf('Saved subject list: %s\n', tsvPath);
 
   % Optionally write per-subject NIfTIs to disk for downstream reproducibility
-  if isfield(opt.groupMvpa, 'writeNifti') && opt.groupMvpa.writeNifti
+  writeNifti = isfield(opt.groupMvpa, 'writeNifti') && opt.groupMvpa.writeNifti;
+  if strcmp(strategy, 'concatenate')
+    if writeNifti
+      fprintf('Concatenate strategy: skipping NIfTI writing to avoid rewriting existing 4D maps.\n');
+    end
+    writeNifti = false; % do not rewrite existing 4D maps
+  end
+
+  if writeNifti
     fprintf('Writing per-subject NIfTIs to disk...\n');
     for i = 1:numel(validSubjects)
       subID = validSubjects{i};
       subLabel = ['sub-' subID];
       ffxDir = fullfile(statsBaseDir, subLabel, ...
-                        ['task-', opt.taskName{1}, '_space-', opt.spaceFolder, '_FWHM-2']);
+                        ['task-', opt.taskName{1}, '_space-', opt.space{1}, '_FWHM-2']);
       imgName = sprintf('%s_task-%s_space-%s_desc-4D_%s.nii', ...
-                        subLabel, opt.taskName{1}, opt.spaceFolder, opt.groupMvpa.imageType);
+                        subLabel, opt.taskName{1}, opt.space{1}, opt.groupMvpa.imageType);
       imgPath = fullfile(ffxDir, imgName);
       if ~exist(imgPath,'file'), continue; end
       Vref = spm_vol(imgPath);
@@ -265,19 +293,54 @@ function [tsvPath, subID] = find_first_labelfold(statsBaseDir, allSubjects, opt)
     sub = allSubjects{i};
     subLabel = ['sub-' sub];
     ffxDir = fullfile(statsBaseDir, subLabel, ...
-              ['task-', opt.taskName{1}, '_space-', opt.spaceFolder, '_FWHM-2']);
-    p = find_labelfold_tsv(ffxDir);
+              ['task-', opt.taskName{1}, '_space-', opt.space{1}, '_FWHM-2']);
+    p = find_labelfold_tsv(ffxDir, subLabel, opt);
     if ~isempty(p)
       tsvPath = p; subID = sub; return; end
   end
 end
 
-function p = find_labelfold_tsv(ffxDir)
+function p = find_labelfold_tsv(ffxDir, subLabel, opt)
+  % Deterministic labelfold path: sub-XX_task-<task>_space-<space>_labelfold.tsv
   p = '';
   if ~exist(ffxDir,'dir'); return; end
-  dd = dir(fullfile(ffxDir, '*labelfold.tsv'));
+  fname = sprintf('%s_task-%s_space-%s_labelfold.tsv', ...
+                  subLabel, opt.taskName{1}, opt.space{1});
+  cand = fullfile(ffxDir, fname);
+  if exist(cand, 'file')
+    p = cand;
+  end
+end
+
+function imgPath = resolve_image_path(ffxDir, subLabel, opt, strategy)
+  % Resolve 4D image path with controlled fallbacks
+  imgPath = '';
+  % Primary expected name
+  primary = sprintf('%s_task-%s_space-%s_desc-4D_%s.nii', ...
+            subLabel, opt.taskName{1}, opt.space{1}, opt.groupMvpa.imageType);
+  cand = fullfile(ffxDir, primary);
+  if exist(cand, 'file')
+    imgPath = cand; return;
+  end
+
+  % Fallback 1: any desc-4D_<imageType>.nii
+  dd = dir(fullfile(ffxDir, sprintf('*desc-4D_%s.nii', opt.groupMvpa.imageType)));
   if ~isempty(dd)
-    p = fullfile(ffxDir, dd(1).name);
+    imgPath = fullfile(ffxDir, dd(1).name); return;
+  end
+
+  % Fallback 2: any desc-4D_*.nii
+  dd = dir(fullfile(ffxDir, '*desc-4D_*.nii'));
+  if ~isempty(dd)
+    imgPath = fullfile(ffxDir, dd(1).name); return;
+  end
+
+  % Fallback 3: only for non-specific strategies, allow all3D as last resort
+  if ~strcmp(strategy, 'specific')
+    dd = dir(fullfile(ffxDir, sprintf('*desc-all3D_%s.nii', opt.groupMvpa.imageType)));
+    if ~isempty(dd)
+      imgPath = fullfile(ffxDir, dd(1).name); return;
+    end
   end
 end
 
@@ -289,8 +352,8 @@ end
 
 function opt = setDefaultOptions()
   opt.taskName = {'somatotopy'};
-  opt.spaceFolder = 'MNI152NLin2009cAsym';
-  opt.groupMvpa.strategy = 'average'; % 'average' | 'specific' | 'concatenate'
+  opt.space = {'MNI152NLin2009cAsym'};
+  opt.groupMvpa.strategy = 'specific'; % 'average' | 'specific' | 'concatenate'
   opt.groupMvpa.imageType = 'tmap';    % 'tmap' | 'beta'
   opt.groupMvpa.conditions = {'hand'}; % pattern match (case-insensitive) if strategy='specific'
   opt.groupMvpa.sampleGranularity = 'per-run'; % 'per-run' | 'per-condition-avg'
@@ -319,7 +382,7 @@ function write_subject_nifti_and_tsv(Vref, Ysub, meta, outDirSub, subLabel, opt)
   
   if ndims(Ysub)==3
     out3d = fullfile(outDirSub, sprintf('%s_task-%s_space-%s_desc-%s_%s.nii', ...
-                    subLabel, opt.taskName{1}, opt.spaceFolder, strrep(descStr, '4D', '3D'), opt.groupMvpa.imageType));
+                    subLabel, opt.taskName{1}, opt.space{1}, strrep(descStr, '4D', '3D'), opt.groupMvpa.imageType));
     write_nifti_like(Vref(1), Ysub, out3d);
     % Write TSV
     tsvOut = strrep(out3d, '.nii', '_labelfold.tsv');
@@ -331,11 +394,11 @@ function write_subject_nifti_and_tsv(Vref, Ysub, meta, outDirSub, subLabel, opt)
     tmpList = cell(nV,1);
     for k=1:nV
       tmpList{k} = fullfile(outDirSub, sprintf('%s_task-%s_space-%s_desc-%sVol-%03d_%s.nii', ...
-                     subLabel, opt.taskName{1}, opt.spaceFolder, descStr, k, opt.groupMvpa.imageType));
+                     subLabel, opt.taskName{1}, opt.space{1}, descStr, k, opt.groupMvpa.imageType));
       write_nifti_like(Vref(1), Ysub(:,:,:,k), tmpList{k});
     end
     out4d = fullfile(outDirSub, sprintf('%s_task-%s_space-%s_desc-%s_%s.nii', ...
-                    subLabel, opt.taskName{1}, opt.spaceFolder, descStr, opt.groupMvpa.imageType));
+                    subLabel, opt.taskName{1}, opt.space{1}, descStr, opt.groupMvpa.imageType));
     try
       spm_file_merge(char(tmpList), out4d);
       % cleanup temps
