@@ -1,4 +1,4 @@
-function accu = calculateGroupDecodingPerCondition(opt)
+function accu = calculateGroupDecodingPerCondition(opt, roiSource)
 % Classify ctrl vs mbs group membership using per-condition 4D maps
 %
 % Main function to perform group-level MVPA decoding classifying subjects
@@ -17,23 +17,24 @@ function accu = calculateGroupDecodingPerCondition(opt)
 % Usage (called from batchMvpa.m):
 %   opt.groupMvpa.condition = 'hand';  % single condition: 'hand', 'feet', etc.
 %   opt.groupMvpa.imageType = 'tmap';
-%   opt.groupMvpa.maskLabel = 'bilateral_somatosensory';
-%   accu = calculateGroupDecodingPerCondition(opt);
+%   accu = calculateGroupDecodingPerCondition(opt, 'glassier');
 %
 % Required opt fields:
 %   opt.taskName              = {'somatotopy'}
 %   opt.groupMvpa.condition   = 'hand'  % single condition name
 %   opt.groupMvpa.imageType   = 'tmap' | 'beta'
-%   opt.groupMvpa.maskLabel   = mask structure or string (from chooseMask.m)
 %   opt.spaceFolder           = 'MNI152NLin2009cAsym'
 %   opt.dir.stats             = path to bidspm-stats directory
 %   opt.pathOutput            = output directory path
 %
-% Output (saved under opt.pathOutput):
-%   - MAT file with accu structure (accuracy, predictions, confusion matrix)
-%   - CSV file with summary results
+% Required roiSource:
+%   roiSource                 = 'glassier' or 'glassierexclusive' or other ROI source
 
-  if nargin<1 || isempty(opt)
+  if nargin < 2
+    error('Two inputs required: calculateGroupDecodingPerCondition(opt, roiSource)');
+  end
+  
+  if nargin < 1 || isempty(opt)
     error('opt structure required. Call this function from batchMvpa.m');
   end
 
@@ -59,6 +60,11 @@ function accu = calculateGroupDecodingPerCondition(opt)
   savefileMat = fullfile(opt.pathOutput, [baseName, '.mat']);
   savefileCsv = fullfile(opt.pathOutput, [baseName, '.csv']);
 
+  % Set default roiSource if not provided
+  if ~isfield(opt, 'roiSource')
+    opt.roiSource = roiSource;
+  end
+
   %% Get subject list and group labels
   [allSubjects, groupLabels] = loadSubjectList(opt);
   nSubjects = numel(allSubjects);
@@ -67,7 +73,7 @@ function accu = calculateGroupDecodingPerCondition(opt)
           nSubjects, sum(groupLabels==1), sum(groupLabels==2));
 
   %% Get mask
-  maskPath = getMaskPath(opt);
+  [maskPath, opt] = getMaskPath(opt);
 
   %% Initialize results structure
   accu = struct( ...
@@ -77,7 +83,9 @@ function accu = calculateGroupDecodingPerCondition(opt)
     'predictions', [], ...
     'trueLabels', [], ...
     'condition', [], ...
-    'maskLabel', [], ...
+    'maskHemi', [], ...
+    'maskArea', [], ...
+    'maskFull', [], ...
     'imageType', [], ...
     'space', [], ...
     'ffxSmooth', []);
@@ -132,7 +140,18 @@ function accu = calculateGroupDecodingPerCondition(opt)
     accu(count).predictions = predictions(iFold);
     accu(count).trueLabels = trueLabels(iFold);
     accu(count).condition = opt.groupMvpa.condition;
-    accu(count).maskLabel = getMaskLabelStr(opt);
+    
+    % Store mask information (first mask if multiple)
+    if isfield(opt, 'maskLabel') && iscell(opt.maskLabel) && length(opt.maskLabel) > 0
+      accu(count).maskHemi = opt.maskLabel{1}.hemi;
+      accu(count).maskArea = opt.maskLabel{1}.area;
+      accu(count).maskFull = opt.maskLabel{1}.full;
+    else
+      accu(count).maskHemi = '';
+      accu(count).maskArea = '';
+      accu(count).maskFull = '';
+    end
+    
     accu(count).imageType = opt.groupMvpa.imageType;
     accu(count).space = opt.spaceFolder;
     accu(count).ffxSmooth = funcFWHM;
@@ -159,56 +178,6 @@ function accu = calculateGroupDecodingPerCondition(opt)
   fprintf('========================================\n');
 
 end
-% Classify ctrl vs mbs group membership using per-condition 4D maps
-%
-% This script performs group-level MVPA decoding to classify whether subjects
-% belong to ctrl or mbs groups based on their activation patterns for a specific
-% body part condition (e.g., hand, feet, lips, tongue, forehead).
-%
-% Approach:
-%   - Load per-subject 4D maps (e.g., desc-hand4D_tmap.nii)
-%   - Each 4D contains 12 volumes (one per run, averaged repetitions within run)
-%   - Use Leave-One-Subject-Out (LOSO) cross-validation
-%   - Classify ctrl (label=1) vs mbs (label=2)
-%
-% Usage (called from batchMvpa.m):
-%   opt.groupMvpa.condition = 'hand';  % single condition: 'hand', 'feet', etc.
-%   opt.groupMvpa.imageType = 'tmap';
-%   opt.groupMvpa.maskLabel = 'bilateral_somatosensory';
-%   calculateGroupDecodingPerCondition(opt);
-%
-% Required opt fields:
-%   opt.taskName              = {'somatotopy'}
-%   opt.groupMvpa.condition   = 'hand'  % single condition name
-%   opt.groupMvpa.imageType   = 'tmap' | 'beta'
-%   opt.groupMvpa.maskLabel   = 'bilateral_somatosensory' (from chooseMask.m)
-%   opt.spaceFolder           = 'MNI152NLin2009cAsym'
-%   opt.dir.stats             = path to bidspm-stats directory
-%
-% Output (saved under outputs/derivatives/cosmoMvpa/group/):
-%   - MAT file with decoding results (accuracy, predictions, confusion matrix)
-%   - TSV file with per-fold accuracy
-
-  if nargin<1 || isempty(opt)
-    error('opt structure required. Call this function from batchMvpa.m');
-  end
-
-  fprintf('\n========================================\n');
-  fprintf('GROUP DECODING: Per-Condition (ctrl vs mbs)\n');
-  fprintf('Task: %s | Condition: %s | Image: %s\n', ...
-    opt.taskName{1}, opt.groupMvpa.condition, opt.groupMvpa.imageType);
-  fprintf('========================================\n');
-
-  % Directories
-  statsBaseDir = opt.dir.stats;
-  outputDir = fullfile(statsBaseDir, '..', 'cosmoMvpa', 'group');
-  if ~exist(outputDir,'dir'); mkdir(outputDir); end
-
-  fprintf('\n========================================\n');
-  fprintf('COMPLETED: Group decoding for %s\n', opt.groupMvpa.condition);
-  fprintf('========================================\n');
-
-end
 
 %% SUBFUNCTIONS
 
@@ -219,7 +188,7 @@ function [allSubjects, groupLabels] = loadSubjectList(opt)
   tsvFiles = dir(tsvPattern);
   
   if isempty(tsvFiles)
-    error('No groupDecoding TSV file found. Run prepareGroupDecoding.m first.');
+    error('No groupDecoding TSV file found. Run assembleGroupDecodingInputs.m first.');
   end
   
   [~, idx] = max([tsvFiles.datenum]);
@@ -231,21 +200,30 @@ function [allSubjects, groupLabels] = loadSubjectList(opt)
   groupLabels = double(tSubjects.group); % 1=ctrl, 2=mbs
 end
 
-function maskPath = getMaskPath(opt)
-  % Get mask path using chooseMask helper or direct path
-  fprintf('Loading mask: ');
+function [maskPath, opt] = getMaskPath(opt)
+  % Get mask path using chooseMask helper
+  fprintf('Getting mask from roiSource: %s\n', opt.roiSource);
   
-  if isstruct(opt.groupMvpa.maskLabel)
-    maskLabelStr = opt.groupMvpa.maskLabel.full;
-  else
-    maskLabelStr = opt.groupMvpa.maskLabel;
+  % Call chooseMask with proper signature: (opt, roiSource, subID)
+  % For group-level, we don't need subID, so pass empty
+  opt = chooseMask(opt, opt.roiSource, []);
+  
+  % Print out the mask names (like in calculatePairwiseMvpa.m)
+  if isfield(opt, 'maskLabel') && iscell(opt.maskLabel)
+    for iMask = 1:length(opt.maskLabel)
+      fprintf('  Mask: %s\n', opt.maskLabel{iMask}.full);
+    end
   end
-  fprintf('%s\n', maskLabelStr);
   
-  maskPath = chooseMask(maskLabelStr, opt);
+  % Use the first mask for group-level decoding
+  if isfield(opt, 'maskName') && iscell(opt.maskName) && ~isempty(opt.maskName{1})
+    maskPath = opt.maskName{1};
+  else
+    maskPath = opt.maskPath;
+  end
   
   if isempty(maskPath) || ~exist(maskPath, 'file')
-    error('Mask not found: %s', maskLabelStr);
+    error('Mask not found: %s', maskPath);
   end
 end
 
@@ -324,10 +302,32 @@ function ds_group = stackGroupDatasets(datasets, groupLabels)
 end
 
 function [accuracy, foldAccuracy, predictions, trueLabels] = runLOSODecoding(ds_group, opt)
-  % Run Leave-One-Subject-Out cross-validation
+  % Run Leave-One-Subject-Out cross-validation with optional feature selection
   
-  % Set up classifier
-  classifier = @cosmo_classify_lda; % Linear Discriminant Analysis
+  % Set up classifier from opt.mvpa settings
+  if isfield(opt, 'mvpa') && isfield(opt.mvpa, 'child_classifier')
+    classifier = opt.mvpa.child_classifier;
+    fprintf('  Using classifier: %s\n', func2str(classifier));
+  else
+    classifier = @cosmo_classify_lda; % Default fallback
+    fprintf('  Using default classifier: LDA\n');
+  end
+  
+  % Check for normalization option
+  applyNormalization = false;
+  if isfield(opt, 'mvpa') && isfield(opt.mvpa, 'normalization')
+    if strcmp(opt.mvpa.normalization, 'zscore')
+      applyNormalization = true;
+      fprintf('  Applying z-score normalization\n');
+    end
+  end
+  
+  % Check for feature selection option
+  ratioToKeep = [];
+  if isfield(opt, 'mvpa') && isfield(opt.mvpa, 'ratioToKeep')
+    ratioToKeep = opt.mvpa.ratioToKeep;
+    fprintf('  Selecting top %d voxels via ANOVA\n', ratioToKeep);
+  end
   
   % LOSO partitions
   partitions = cosmo_nchoosek_partitioner(ds_group, 1, 'chunks');
@@ -343,6 +343,23 @@ function [accuracy, foldAccuracy, predictions, trueLabels] = runLOSODecoding(ds_
     
     ds_train = cosmo_slice(ds_group, trainIdx);
     ds_test = cosmo_slice(ds_group, testIdx);
+    
+    % Apply normalization if specified
+    if applyNormalization
+      ds_train = cosmo_normalize(ds_train, 'zscore');
+      ds_test = cosmo_normalize(ds_test, 'zscore');
+    end
+    
+    % Apply feature selection on training data if specified
+    if ~isempty(ratioToKeep)
+      ds_train_selected = cosmo_anova_feature_selector(ds_train, ratioToKeep);
+      
+      % Get selected feature indices
+      selectedFeat = ds_train_selected.fa.samples > 0;
+      
+      % Apply same selection to test data
+      ds_test = cosmo_slice(ds_test, selectedFeat, 2);
+    end
     
     % Train and predict
     pred = classifier(ds_train.samples, ds_train.sa.targets, ds_test.samples);
@@ -370,14 +387,5 @@ function [accuracy, foldAccuracy, predictions, trueLabels] = runLOSODecoding(ds_
     % Majority vote (or just take first since all should be same)
     predictions(iFold) = mode(foldPreds);
     trueLabels(iFold) = foldTrue(1);
-  end
-end
-
-function maskLabelStr = getMaskLabelStr(opt)
-  % Extract mask label string
-  if isstruct(opt.groupMvpa.maskLabel)
-    maskLabelStr = opt.groupMvpa.maskLabel.full;
-  else
-    maskLabelStr = opt.groupMvpa.maskLabel;
   end
 end
