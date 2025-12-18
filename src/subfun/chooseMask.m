@@ -75,6 +75,21 @@ switch lower(roiSource)
         % Extract labels from filenames for output
         opt.maskLabel = cellfun(@(x) extractMaskLabel(x), opt.maskName, 'UniformOutput', false);
         
+    case {'bspline','nearest'}
+        % Subject-specific MNI-space masks; folder chosen by roiSource
+        if isempty(subID) || strcmp(subID, 'sub-')
+            error('chooseMask:missingSubID', ...
+                  'subID is required when using bspline/nearest ROI source');
+        end
+        interpFolder = lower(roiSource); % 'bspline' or 'nearest'
+        subjDir = fullfile(opt.maskPath, interpFolder, subID);
+        if ~exist(subjDir, 'dir')
+            error('chooseMask:missingDir', 'Mask directory not found: %s', subjDir);
+        end
+        opt.maskName = spm_select('FPlist', subjDir, '.*\.nii(\.gz)?$');
+        opt.maskName = cellstr(opt.maskName);
+        opt.maskLabel = cellfun(@(x) extractMaskLabel(x), opt.maskName, 'UniformOutput', false);
+
 end
 
 
