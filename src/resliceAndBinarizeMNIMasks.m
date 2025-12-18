@@ -1,67 +1,52 @@
+function resliceAndBinarizeMNIMasks(opt, interp)
 % Reslice and binarize MNI-space Glasser masks per subject
 % 
+% INPUTS:
+%   opt    - options structure from batchMvpa (must contain opt.subjects, opt.taskName)
+%   interp - interpolation method used in warp step: 'nearest', 'linear', or 'bspline'
+%
 % Workflow:
-% - Loops through all subjects defined in 'subjects' list
-% - Reads each subject's warped native masks from volumetric_MNI2009cAsym/<subject>/
+% - Loops through all subjects from opt.subjects
+% - Reads each subject's warped native masks from volumetric_MNI2009cAsym/<interp>/<subject>/
 % - Loads subject's reference 4D image to get canonical dimensions
 % - Reslices masks to match reference dimensions (if needed)
 % - Re-binarizes masks after reslicing (interpolation introduces values >0, <1)
-% - Saves to volumetric_MNI2009cAsym/<subject>/resliced/
+% - Saves to volumetric_MNI2009cAsym/<interp>/<subject>/resliced/
 %
-% This script reslices all masks to match the subject's task-specific 4D functional space
-% Check if reslicing + re-binarization is necessary before committing to this step
-
-clear;
-clc;
-
-addpath(fullfile(fileparts(mfilename('fullpath')), '..'));
-
-% SPM setup
-warning('off');
-addpath(genpath('/Users/battal/Documents/MATLAB/spm12'));
-
-this_dir = fullfile('/Volumes/extreme/Cerens_files/fMRI', ...
-                      'moebius_topo_analyses/code/src/mvpa');
-addpath(fullfile(this_dir, '..', '..', 'lib', 'bidspm'), '-begin');
-
-bidspm();
+% NOTE: bidspm must be initialized before calling this function
 
 % Add helper functions
-addpath(genpath(fullfile(pwd, 'subfun')));
+addpath(genpath(fullfile(fileparts(mfilename('fullpath')), 'subfun')));
 
-%% Set options
-opt.threshold = 0.0;  % Initial binary threshold for original masks
-opt.reslice.do = true;
-opt.save.roi = true;
-opt.taskName = 'mototopy';  % or 'somatotopy'
 
-%% Define participants
-subjects = {'ctrl001', 'ctrl002', 'ctrl003', 'ctrl004', 'ctrl005', ...
-            'ctrl007', 'ctrl008', 'ctrl009', 'ctrl010', 'ctrl011', ...
-            'ctrl012', 'ctrl013', 'ctrl014', 'ctrl015', 'ctrl016', ...
-            'ctrl017', 'mbs001', 'mbs002', 'mbs003', 'mbs004', ...
-            'mbs005', 'mbs006', 'mbs007'};
+%% Define base paths (not present in batchMvpa.m)
+% opt.space should already be set in batchMvpa; if not, default to MNI
+if ~isfield(opt, 'space')
+    opt.space = {'MNI152NLin2009cAsym'};
+end
+spaceLabel = opt.space{1};
 
-% Uncomment to test on a subset:
-subjects = {'ctrl001'};
+% Build mask directory with interpolation method subfolder
+% Use opt.maskPath from batchMvpa as base (volumetric_MNI2009cAsym)
+if ~isfield(opt, 'maskPath')
+    error('opt.maskPath must be defined in calling script (batchMvpa.m)');
+end
+opt.maskBaseDir = fullfile(opt.maskPath, interp);
 
-%% Define base paths and add to opt
-opt.mainDir = '/Volumes/extreme/Cerens_files/fMRI';
-opt.space = 'MNI152NLin2009cAsym';
-
-opt.statsBaseDir = fullfile(opt.mainDir, ...
-                            '/moebius_topo_analyses/outputs/derivatives/', ...
-                            'bidspm-stats');
-
-opt.maskBaseDir = fullfile(opt.mainDir, ...
-                           '/GlasserAtlas/Glasser_ROIs_sensorimotor/volumetric_MNI2009cAsym');
+% Stats base dir (should already be in opt.dir.stats from batchMvpa)
+if ~isfield(opt, 'dir') || ~isfield(opt.dir, 'stats')
+    error('opt.dir.stats must be defined in calling script (batchMvpa.m)');
+end
+opt.statsBaseDir = opt.dir.stats;
 
 fprintf('\n========================================\n');
-fprintf('RESLICE & BINARIZE MNI MASKS - BATCH\n');
-fprintf('Task: %s | Space: %s\n', opt.taskName, opt.space);
+fprintf('RESLICE & BINARIZE MNI MASKS\n');
+fprintf('Task: %s | Space: %s | Interp: %s\n', opt.taskName{1}, spaceLabel, interp);
+fprintf('Mask source: %s\n', opt.maskBaseDir);
 fprintf('========================================\n');
 
-%% Loop through subjects
+%% Loop through subjects from opt
+subjects = opt.subjects;
 for iSub = 1:length(subjects)
     subID = subjects{iSub};
     subLabel = ['sub-' subID];
@@ -80,5 +65,7 @@ for iSub = 1:length(subjects)
 end
 
 fprintf('\n========================================\n');
-fprintf('✓ BATCH RESLICING COMPLETE!\n');
+fprintf('✓ RESLICING COMPLETE!\n');
 fprintf('========================================\n\n');
+
+end

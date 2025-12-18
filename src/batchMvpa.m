@@ -142,11 +142,36 @@ clc;
   opt.mvpa.pairs = 1; 
   accuracy = calculatePairwiseMvpa(opt, roiSource);
   
+  
+  
+% prep for the group decoding
+% 1. MASKS (input 1)
+% first create the masks with bash script in the repo surface_geo_analysis
+% they will be in MNI space
+% then reslice them
+interp = 'bspline';  % 'nearest', 'linear', or 'bspline' (must match warp step)
+resliceAndBinarizeMNIMasks(opt, interp);
 
-  % group decoding
+% 2. 4D MAPS (input 2)
+% prepare the conditions/4D maps for group decoding
+% Required opt fields (with defaults if missing):
+  opt.taskName              = {'mototopy'};
+  opt.groupMvpa.strategy    = 'average'; % | 'specific' | 'concatenate'
+  opt.groupMvpa.imageType   = 'tmap'; % | 'beta'   % uses desc-4D_<imageType>.nii
+  opt.groupMvpa.conditions  = {'hand'};        % pattern match (case-insensitive) for 'specific'
+  opt.groupMvpa.sampleGranularity = 'per-run'; % | 'per-condition-avg'
+  opt.groupMvpa.writeNifti  = true;       % write per-subject NIfTIs
+  opt.spaceFolder           = 'MNI152NLin2009cAsym'; %| 'T1w' (folder name)
+assembleGroupDecodingInputs(opt)
+
+
+ % 3. perform group decoding
   opt.spaceFolder = 'MNI152NLin2009cAsym';
   opt.groupMvpa.condition = 'hand';
   opt.groupMvpa.imageType = 'tmap';
-  opt.groupMvpa.maskLabel = 'glassier';
-
-  calculateGroupDecodingPerCondition(opt);
+  roiSource = 'glassier';
+  calculateGroupDecodingPerCondition(opt, roiSource);
+  
+  % note 18/12/2025 th masks are done in mototopy - and no task related
+  % folders are created in the mask folder. technically MNI based masks
+  % should be ok but something to consider.
