@@ -69,6 +69,13 @@ function assembleGroupDecodingInputs(opt)
                   'ctrl012','ctrl013','ctrl015','ctrl016','ctrl017'};
   mbsSubjects  = {'mbs001','mbs002','mbs003','mbs004','mbs005','mbs006','mbs007'};
 
+  % If task is mototopy, include ctrl014 in the ctrl list
+  if isfield(opt,'taskName') && ~isempty(opt.taskName) && strcmp(opt.taskName{1}, 'mototopy')
+    if ~ismember('ctrl014', ctrlSubjects)
+      ctrlSubjects{end+1} = 'ctrl014';
+    end
+  end
+
   allSubjects = [ctrlSubjects, mbsSubjects];
   groupLabels = [ones(1, numel(ctrlSubjects)), 2*ones(1, numel(mbsSubjects))]; % 1=ctrl, 2=mbs
 
@@ -117,9 +124,11 @@ function assembleGroupDecodingInputs(opt)
     subLabel = ['sub-' subID];
     gLab = groupLabels(iSub);
     ffxDir = fullfile(statsBaseDir, subLabel, ...
-              ['task-', opt.taskName{1}, '_space-', opt.space{1}, '_FWHM-2']);
+              ['task-', opt.taskName{1}, '_space-', opt.space{1}, ...
+              '_FWHM-', num2str(opt.fwhm.func)]);
 
-    fprintf('\nProcessing %s (group %d) [%d/%d]\n', subLabel, gLab, iSub, numel(allSubjects));
+    fprintf('\nProcessing %s (group %d) [%d/%d]\n', ...
+            subLabel, gLab, iSub, numel(allSubjects));
     if ~exist(ffxDir,'dir')
       warning('Stats dir missing, skip: %s', ffxDir); continue; end
 
