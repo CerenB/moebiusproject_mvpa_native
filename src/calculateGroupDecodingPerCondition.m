@@ -98,7 +98,7 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
 
   %% Load all subjects' data
   fprintf('\nLoading per-subject 4D images...\n');
-  [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubjects, groupLabels);
+  [datasets, validSubjects, validLabels, maskPaths] = loadGroupDatasets(opt, allSubjects, groupLabels);
   nValid = numel(validSubjects);
 
   if nValid < 4
@@ -108,15 +108,31 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
   fprintf('\nValid subjects for decoding: %d (ctrl=%d, mbs=%d)\n', ...
           nValid, sum(validLabels==1), sum(validLabels==2));
 
-  %% Stack datasets for group-level classification
-  ds_group = stackGroupDatasets(datasets, validLabels);
+  % Align all subjects to common voxels
+  fprintf('\nAligning subjects to common voxel space...\n');
+  datasetsAligned = alignAllSubjects(datasets);
+
+  % Save common voxel mask for visualization (using aligned datasets - just for NIfTI output)
+  maskOutputDir = fullfile(opt.pathOutput, 'commonVoxelMasks');
+  maskSaveName = sprintf('commonVoxels_%s.nii', condStr);
+  try
+    templateMask = maskPaths{1}; % Use first subject's mask info as template
+
+    saveCommonVoxelMask(datasetsAligned, maskOutputDir, templateMask, maskSaveName);
+  catch ME
+    fprintf('Warning: Could not save common voxel mask: %s\n', ME.message);
+  end
+
+  % Stack all subjects into single dataset
+  fprintf('\nStacking subjects into group dataset...\n');
+  ds_group = stackAllSubjects(datasetsAligned, validLabels);
 
   fprintf('\nDataset summary:\n');
   fprintf('  Total samples: %d\n', size(ds_group.samples, 1));
-  fprintf('  Features: %d\n', size(ds_group.samples, 2));
-  fprintf('  Chunks (subjects): %d\n', numel(unique(ds_group.sa.chunks)));
+  fprintf('  Common features: %d\n', size(ds_group.samples, 2));
+  fprintf('  Subjects (chunks): %d\n', numel(unique(ds_group.sa.chunks)));
 
-  %% Run LOSO cross-validation
+  % Run LOSO cross-validation
   fprintf('\nRunning LOSO cross-validation...\n');
   [accuracy, foldAccuracy, predictions, trueLabels] = runLOSODecoding(ds_group, opt);
 
@@ -130,14 +146,14 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
             iFold, validSubjects{iFold}, foldAccuracy(iFold) * 100);
   end
 
-  %% Compute confusion matrix
+  % Compute confusion matrix
   confMat = confusionmat(trueLabels, predictions);
   fprintf('\nConfusion Matrix:\n');
   fprintf('              Predicted ctrl  Predicted mbs\n');
   fprintf('Actual ctrl   %14d  %13d\n', confMat(1,1), confMat(1,2));
   fprintf('Actual mbs    %14d  %13d\n', confMat(2,1), confMat(2,2));
 
-  %% Store results
+  % Store results
   count = 1;
   for iFold = 1:nValid
     accu(count).subID = validSubjects{iFold};
@@ -170,7 +186,7 @@ function accu = calculateGroupDecodingPerCondition(opt, roiSource)
     accu(i).confusionMatrix = confMat;
   end
 
-  %% Save output
+  % Save output
   save(savefileMat, 'accu');
   fprintf('\nSaved results: %s\n', savefileMat);
 
@@ -206,22 +222,27 @@ function [allSubjects, groupLabels] = loadSubjectList(opt)
   groupLabels = double(tSubjects.group); % 1=ctrl, 2=mbs
 end
 
-function [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubjects, groupLabels)
+function [datasets, validSubjects, validLabels, maskPaths] = loadGroupDatasets(opt, allSubjects, groupLabels)
   % Load 4D images for all subjects
   nSubjects = numel(allSubjects);
   datasets = cell(nSubjects, 1);
   validIdx = true(nSubjects, 1);
+  maskPaths = cell(nSubjects, 1);
   
   condStr = strrep(opt.groupMvpa.condition, ' ', '');
-  imgPattern = sprintf('sub-%%s_task-%s_space-%s_desc-%s4D_%s.nii', ...
-                       opt.taskName{1}, opt.space{1}, condStr, opt.groupMvpa.imageType);
+  
   
   for iSub = 1:nSubjects
     subID = allSubjects{iSub};
     subLabel = ['sub-' subID];
     ffxDir = fullfile(opt.dir.stats, subLabel, ...
-              ['task-', opt.taskName{1}, '_space-', opt.space{1}, '_FWHM-2']);
-    imgPath = fullfile(ffxDir, sprintf(imgPattern, subID));
+              ['task-', opt.taskName{1}, '_space-', opt.space{1}, ...
+              '_FWHM-', num2str(opt.fwhm.func)]);
+          
+    imgPattern = sprintf('sub-%s_task-%s_space-%s_desc-%s4D_%s.nii', ...
+                       subID, opt.taskName{1}, opt.space{1}, condStr, ...
+                       opt.groupMvpa.imageType);      
+    imgPath = fullfile(ffxDir, imgPattern);
     
     if ~exist(imgPath, 'file')
       warning('Missing 4D image for %s: %s', subLabel, imgPath);
@@ -246,6 +267,7 @@ function [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubj
       continue;
     end
     fprintf('  Using mask for %s: %s\n', subLabel, maskForSub);
+    maskPaths{iSub} = maskForSub;
 
     try
       ds = cosmo_fmri_dataset(imgPath, 'mask', maskForSub);
@@ -269,120 +291,80 @@ function [datasets, validSubjects, validLabels] = loadGroupDatasets(opt, allSubj
   datasets = datasets(validIdx);
   validSubjects = allSubjects(validIdx);
   validLabels = groupLabels(validIdx);
+  maskPaths = maskPaths(validIdx);
 end
 
-function ds_group = stackGroupDatasets(datasets, groupLabels)
-  % Stack datasets: each subject contributes multiple samples (runs)
-  % Target: replicate group label for each run of that subject
-  % Chunks: subject ID (ensures all runs from same subject stay together)
+function datasetsAligned = alignAllSubjects(datasets)
+  % Find voxels common to all subjects and slice each subject to those voxels
+  nSubs = numel(datasets);
   
-  nValid = numel(datasets);
+  % Get voxel IDs for each subject
+  allIds = cell(nSubs, 1);
+  for i = 1:nSubs
+    allIds{i} = getVoxelIds(datasets{i});
+  end
+  
+  % Find intersection across all subjects
+  commonIds = allIds{1};
+  for i = 2:nSubs
+    commonIds = intersect(commonIds, allIds{i});
+  end
+  
+  if isempty(commonIds)
+    error('No overlapping voxels across all subjects. Check mask alignment.');
+  end
+  
+  fprintf('  Common voxels across all subjects: %d\n', numel(commonIds));
+  
+  % Slice each subject to common voxels
+  datasetsAligned = cell(nSubs, 1);
+  for i = 1:nSubs
+    datasetsAligned{i} = sliceToCommonVoxels(datasets{i}, commonIds);
+  end
+end
+
+function ids = getVoxelIds(ds)
+  % Extract unique voxel identifiers from dataset
+  if isfield(ds.fa, 'i') && isfield(ds.fa, 'j') && isfield(ds.fa, 'k')
+    ids = ds.fa.i * 1e8 + ds.fa.j * 1e4 + ds.fa.k;
+  elseif isfield(ds.fa, 'voxel_indices')
+    ids = ds.fa.voxel_indices(:);
+  else
+    ids = (1:size(ds.samples, 2))';
+  end
+end
+
+function dsOut = sliceToCommonVoxels(ds, commonIds)
+  % Slice dataset to keep only common voxels
+  voxIds = getVoxelIds(ds);
+  [~, loc] = ismember(commonIds, voxIds);
+  dsOut = cosmo_slice(ds, loc, 2);
+end
+
+function ds_group = stackAllSubjects(datasetsAligned, labels)
+  % Stack all subjects into single dataset with proper targets and chunks
+  nSubs = numel(datasetsAligned);
   allSamples = [];
   allTargets = [];
   allChunks = [];
   
-  for iSub = 1:nValid
-    ds = datasets{iSub};
+  for iSub = 1:nSubs
+    ds = datasetsAligned{iSub};
     nRuns = size(ds.samples, 1);
     allSamples = [allSamples; ds.samples]; %#ok<AGROW>
-    allTargets = [allTargets; repmat(groupLabels(iSub), nRuns, 1)]; %#ok<AGROW>
+    allTargets = [allTargets; repmat(labels(iSub), nRuns, 1)]; %#ok<AGROW>
     allChunks = [allChunks; repmat(iSub, nRuns, 1)]; %#ok<AGROW>
   end
   
-  % Create CoSMoMVPA dataset
+  % Create stacked dataset
   ds_group = struct();
   ds_group.samples = allSamples;
   ds_group.sa.targets = allTargets;
   ds_group.sa.chunks = allChunks;
-  ds_group.fa = datasets{1}.fa;
-  ds_group.a = datasets{1}.a;
-end
-
-function [accuracy, foldAccuracy, predictions, trueLabels] = runLOSODecoding(ds_group, opt)
-  % Run Leave-One-Subject-Out cross-validation with optional feature selection
-  
-  % Set up classifier from opt.mvpa settings
-  if isfield(opt, 'mvpa') && isfield(opt.mvpa, 'child_classifier')
-    classifier = opt.mvpa.child_classifier;
-    fprintf('  Using classifier: %s\n', func2str(classifier));
+  ds_group.fa = datasetsAligned{1}.fa;
+  if isfield(datasetsAligned{1}, 'a')
+    ds_group.a = datasetsAligned{1}.a;
   else
-    classifier = @cosmo_classify_lda; % Default fallback
-    fprintf('  Using default classifier: LDA\n');
-  end
-  
-  % Check for normalization option
-  applyNormalization = false;
-  if isfield(opt, 'mvpa') && isfield(opt.mvpa, 'normalization')
-    if strcmp(opt.mvpa.normalization, 'zscore')
-      applyNormalization = true;
-      fprintf('  Applying z-score normalization\n');
-    end
-  end
-  
-  % Check for feature selection option
-  ratioToKeep = [];
-  if isfield(opt, 'mvpa') && isfield(opt.mvpa, 'ratioToKeep')
-    ratioToKeep = opt.mvpa.ratioToKeep;
-    fprintf('  Selecting top %d voxels via ANOVA\n', ratioToKeep);
-  end
-  
-  % LOSO partitions
-  partitions = cosmo_nchoosek_partitioner(ds_group, 1, 'chunks');
-  
-  nFolds = numel(unique(ds_group.sa.chunks));
-  foldAccuracy = zeros(nFolds, 1);
-  allPredictions = [];
-  allTrueLabels = [];
-  
-  for iFold = 1:nFolds
-    testIdx = ds_group.sa.chunks == iFold;
-    trainIdx = ~testIdx;
-    
-    ds_train = cosmo_slice(ds_group, trainIdx);
-    ds_test = cosmo_slice(ds_group, testIdx);
-    
-    % Apply normalization if specified
-    if applyNormalization
-      ds_train = cosmo_normalize(ds_train, 'zscore');
-      ds_test = cosmo_normalize(ds_test, 'zscore');
-    end
-    
-    % Apply feature selection on training data if specified
-    if ~isempty(ratioToKeep)
-      ds_train_selected = cosmo_anova_feature_selector(ds_train, ratioToKeep);
-      
-      % Get selected feature indices
-      selectedFeat = ds_train_selected.fa.samples > 0;
-      
-      % Apply same selection to test data
-      ds_test = cosmo_slice(ds_test, selectedFeat, 2);
-    end
-    
-    % Train and predict
-    pred = classifier(ds_train.samples, ds_train.sa.targets, ds_test.samples);
-    
-    allPredictions = [allPredictions; pred]; %#ok<AGROW>
-    allTrueLabels = [allTrueLabels; ds_test.sa.targets]; %#ok<AGROW>
-    
-    foldAcc = mean(pred == ds_test.sa.targets);
-    foldAccuracy(iFold) = foldAcc;
-  end
-  
-  % Overall accuracy
-  accuracy = mean(allPredictions == allTrueLabels);
-  
-  % Get one prediction per subject (majority vote per subject)
-  nFolds = numel(foldAccuracy);
-  predictions = zeros(nFolds, 1);
-  trueLabels = zeros(nFolds, 1);
-  
-  for iFold = 1:nFolds
-    testIdx = ds_group.sa.chunks == iFold;
-    foldPreds = allPredictions(testIdx);
-    foldTrue = allTrueLabels(testIdx);
-    
-    % Majority vote (or just take first since all should be same)
-    predictions(iFold) = mode(foldPreds);
-    trueLabels(iFold) = foldTrue(1);
+    ds_group.a = struct();
   end
 end
