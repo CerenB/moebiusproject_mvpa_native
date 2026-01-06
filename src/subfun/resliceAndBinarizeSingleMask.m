@@ -47,7 +47,7 @@ try
     
     % Re-binarize after reslicing
     fprintf('      Binarizing...\n');
-    opt.threshold = 0.2;  % Higher threshold for interpolated data
+    opt.threshold = 0.1; % 0.2  % Higher threshold for interpolated data
     opt.outputDir = maskOutputDir;
     
     finalMaskName = [maskName, '.nii'];

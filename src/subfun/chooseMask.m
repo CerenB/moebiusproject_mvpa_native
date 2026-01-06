@@ -3,10 +3,15 @@ function [opt] = chooseMask(opt, roiSource, subID)
 % this is a switch case, according to the action, we choose with ROIs to be
 % used
 
-% action 1: atlas SPM Anatomy - MNI
-% action 2: atlas HCPex - MNI
-% action 3: glassier atlas - T1w space
-% action 4: glassierExclusive - T1w space, exclusive masks with no overlap
+% Sources handled:
+% - spmanat: SPM Anatomy atlas (MNI)
+% - hcpex: HCPex atlas (MNI)
+% - glassier: subject-specific Glasser masks in T1w space (binary)
+% - glassierExclusive: subject-specific Glasser exclusive masks (no overlap)
+% - bspline / nearest: subject-specific resliced MNI masks (interp choice)
+% - probability: precomputed group probability masks (thresholded, pooled)
+% - balanced: precomputed balanced group mask (threshold met in each group)
+
 
 if nargin < 3
     subID = [];
@@ -82,7 +87,8 @@ switch lower(roiSource)
                   'subID is required when using bspline/nearest ROI source');
         end
         interpFolder = lower(roiSource); % 'bspline' or 'nearest'
-        subjDir = fullfile(opt.maskPath, interpFolder, subID);
+        % you need to take resliced masks
+        subjDir = fullfile(opt.maskPath, interpFolder, subID, 'resliced');
         if ~exist(subjDir, 'dir')
             error('chooseMask:missingDir', 'Mask directory not found: %s', subjDir);
         end
@@ -90,30 +96,88 @@ switch lower(roiSource)
         opt.maskName = cellstr(opt.maskName);
         opt.maskLabel = cellfun(@(x) extractMaskLabel(x), opt.maskName, 'UniformOutput', false);
 
+    case 'probability'
+        % Group-level probability masks at configured threshold (may be multiple per ROI base)
+        if ~isfield(opt, 'probMaskDir') || isempty(opt.probMaskDir)
+            error('chooseMask:missingProbDir', 'opt.probMaskDir must be set for prob50 roiSource');
+        end
+        if ~isfield(opt, 'groupMvpa') || ~isfield(opt.groupMvpa, 'condition')
+            error('chooseMask:missingCondition', 'opt.groupMvpa.condition is required for prob50 roiSource');
+        end
+        pct = defaultProbPct(opt);
+        condStr = strrep(opt.groupMvpa.condition, ' ', '');
+        pat = sprintf('probMap_%s_.*_%dpct_binary\.nii$', condStr, pct);
+        files = spm_select('FPlist', opt.probMaskDir, pat);
+        files = cellstr(files);
+        if isempty(files)
+            error('chooseMask:missingProbMask', 'No probability masks matching pattern in %s', opt.probMaskDir);
+        end
+        opt.maskName = files;
+        opt.maskLabel = cellfun(@(x) extractMaskLabel(x), files, 'UniformOutput', false);
+
+    case 'balanced'
+        % Balanced mask: voxel present in thresholded maps of every group
+        if ~isfield(opt, 'probMaskDir') || isempty(opt.probMaskDir)
+            error('chooseMask:missingProbDir', 'opt.probMaskDir must be set for balanced roiSource');
+        end
+        if ~isfield(opt, 'groupMvpa') || ~isfield(opt.groupMvpa, 'condition')
+            error('chooseMask:missingCondition', 'opt.groupMvpa.condition is required for balanced roiSource');
+        end
+        pct = defaultProbPct(opt);
+        condStr = strrep(opt.groupMvpa.condition, ' ', '');
+        pat = sprintf('probMap_group-balanced_%s_.*_%dpct_binary\.nii$', condStr, pct);
+        files = spm_select('FPlist', opt.probMaskDir, pat);
+        files = cellstr(files);
+        if isempty(files)
+            error('chooseMask:missingBalancedMask', 'No balanced mask found in %s', opt.probMaskDir);
+        end
+        opt.maskName = files;
+        opt.maskLabel = cellfun(@(x) extractMaskLabel(x), files, 'UniformOutput', false);
+
 end
 
 
+end
+
+function pct = defaultProbPct(opt)
+    % Derive probability threshold percent from opt
+    if isfield(opt, 'probThreshold') && ~isempty(opt.probThreshold)
+        pct = round(opt.probThreshold * 100);
+    else
+        pct = 50;
+    end
 end
 
 function label = extractMaskLabel(filename)
     % Extract hemisphere and area from filename
-    % e.g., 'L_area3a_3b.nii.gz' -> struct with hemi='L', area='area3a_3b'
+    % Handles multiple formats:
+    %   'L_area3a_3b.nii.gz' -> hemi='L', area='area3a_3b'
+    %   'probMap_group-balanced_hand_L_area3a_3b_2_1_50pct_binary.nii' -> hemi='L', area='area3a_3b_2_1'
     [~, name, ~] = fileparts(filename);
     if endsWith(name, '.nii')
         name = name(1:end-4);
     end
     
-    % Split by underscore
-    parts = strsplit(name, '_');
+    % Try regex pattern for probability/balanced masks: _[LR]_<area>_\d+pct_binary
+    hemiAreaMatch = regexp(name, '_([LR])_(.+?)_(\d+pct_binary)$', 'tokens');
     
-    if length(parts) >= 2
-        label.hemi = parts{1};  % 'L' or 'R'
-        label.area = strjoin(parts(2:end), '_');  % 'area3a_3b' or 'area4', etc.
-        label.full = name;  % Keep full name too
-    else
-        % Fallback if format is unexpected
-        label.hemi = '';
-        label.area = name;
+    if ~isempty(hemiAreaMatch)
+        % Probability or balanced mask format
+        label.hemi = hemiAreaMatch{1}{1};  % 'L' or 'R'
+        label.area = hemiAreaMatch{1}{2};  % e.g., 'area3a_3b_2_1'
         label.full = name;
+    else
+        % Try simple format: L_<area> or R_<area>
+        parts = strsplit(name, '_');
+        if length(parts) >= 2 && (strcmp(parts{1}, 'L') || strcmp(parts{1}, 'R'))
+            label.hemi = parts{1};
+            label.area = strjoin(parts(2:end), '_');
+            label.full = name;
+        else
+            % Fallback if format is unexpected
+            label.hemi = '';
+            label.area = name;
+            label.full = name;
+        end
     end
 end

@@ -60,7 +60,7 @@ clc;
                   'ctrl012', 'ctrl013', 'ctrl014', 'ctrl015', 'ctrl016', ...
                   'ctrl017', 'mbs001', 'mbs002' , 'mbs003', 'mbs004', ...
                   'mbs005', 'mbs006', 'mbs007'}; 
-  %opt.subjects = {'ctrl014'};            
+  % opt.subjects = {'ctrl014'};            
 
 
 % 'mbs001', 'mbs002' , 'mbs003', 'mbs004', 'mbs005', ...
@@ -151,12 +151,10 @@ clc;
 % then reslice them
 % Set internal options for reslicing
 opt.threshold = 0.0;  % Initial binary threshold for original masks
-opt.reslice.do = true;
+opt.probThreshold = 0.5; % probability threshold for group-level masks (can be overridden later)
 opt.save.roi = true;
-interp = 'bspline';  % 'nearest', 'linear', or 'bspline' (must match warp step)
-resliceAndBinarizeMNIMasks(opt, interp);
-
-%%%%%%% REDO THE RESLICING %%%%%%%%% THEN IT SHOULD WORK THE REST
+inputRoiSource = 'nearest';  % 'nearest', 'linear', or 'bspline' (must match warp step)
+resliceAndBinarizeMNIMasks(opt, inputRoiSource);
 
 % 2. 4D MAPS (input 2)
 % prepare the conditions/4D maps for group decoding
@@ -164,15 +162,22 @@ resliceAndBinarizeMNIMasks(opt, interp);
   opt.groupMvpa.strategy    = 'specific'; % 'average' | 'specific' | 'concatenate'
   opt.groupMvpa.conditions  = {'hand'};        % pattern match (case-insensitive) for 'specific'
   opt.groupMvpa.sampleGranularity = 'per-run'; % | 'per-condition-avg'
-  opt.groupMvpa.writeNifti  = true;       % write per-subject NIfTIs
+  opt.groupMvpa.writeNifti  = false;       % write per-subject NIfTIs
 assembleGroupDecodingInputs(opt)
 
 
- % 3. perform group decoding
+% 3. Prepare group-level masks (intersection + probability) before decoding
   opt.groupMvpa.condition = 'hand';
-  % Use MNI masks produced via warp script; select interpolation subfolder
-  roiSource = 'bspline'; % or 'nearest'
-  calculateGroupDecodingPerCondition(opt, roiSource);
+  inputRoiSource = 'nearest'; % source mask type to collect from subjects
+  opt.probThreshold = 0.5; % probability threshold: 0.4 (40%), 0.5 (50%), 0.7 (70%), 0.8 (80%), etc.
+  doBalanced = true; % build balanced mask (per-group threshold ANDed) in addition to pooled masks
+  [opt, nCommonCount, nBin50] = prepareGroupMasks(opt, inputRoiSource, doBalanced);
+  % nCommonCount and nBin50 are now arrays (one per mask file)
+
+% 4. perform group decoding
+  decodingRoiSource = 'probability'; % options: 'probability', 'balanced'
+  opt.probThreshold = 0.5; % probability threshold: 0.4 (40%), 0.5 (50%), 0.7 (70%), 0.8 (80%), etc.
+  calculateGroupDecodingPerCondition(opt, decodingRoiSource);
   
   
   
